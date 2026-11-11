@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calidad Procesos 3W - Control de Defectos por VIN</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-12">
+
+  <!-- Encabezado Móvil / Desktop -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-red-600 p-2 rounded-lg text-white font-black text-xl tracking-wider">3W</div>
+        <div>
+          <h1 class="font-bold text-base md:text-lg leading-none">Calidad Procesos 3W</h1>
+          <p class="text-[11px] text-slate-400">Inspección de Motocarros & Tricargos</p>
+        </div>
+      </div>
+      <button onclick="openModelManagerModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-gear text-amber-400"></i>
+        <span class="hidden sm:inline">Gestionar</span> Modelos
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Panel Izquierdo: Formulario de Inspección -->
+    <section class="lg:col-span-5 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
+        <h2 class="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-clipboard-check text-blue-600"></i> <span id="formTitle">Nuevo Registro de Calidad</span>
+        </h2>
+        <button id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-md font-medium">Cancelar Edición</button>
+      </div>
+
+      <form id="qualityForm" class="space-y-4">
+        <input type="hidden" id="editVinId" value="">
+        <input type="hidden" id="editDefectId" value="">
+
+        <!-- Selección de Vehículo / Modelo -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-xs font-semibold text-slate-600">Modelo / Línea</label>
+            <button type="button" onclick="openModelManagerModal()" class="text-[11px] text-blue-600 hover:underline"><i class="fa-solid fa-plus"></i> Añadir Modelo</button>
+          </div>
+          <select id="linea" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" required>
+            <!-- Se llena dinámicamente con JS -->
+          </select>
+        </div>
+
+        <!-- Identificadores (Orden y VIN) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Orden / Pedido</label>
+            <input type="text" id="orden" placeholder="Ej: 170000007785" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Número VIN (Chasis)</label>
+            <input type="text" id="vin" placeholder="Ej: 9FLHCMZ00VGK29117" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono uppercase font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          </div>
+        </div>
+
+        <!-- CASILLA 1: Foto del VIN Independiente -->
+        <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-200 space-y-2">
+          <label class="block text-xs font-bold text-blue-900">
+            <i class="fa-solid fa-id-card text-blue-600 mr-1"></i> Casilla 1: Foto de la Etiqueta / Chasis VIN
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="border border-blue-300 bg-white rounded-lg p-2 text-center cursor-pointer hover:bg-blue-50 transition flex flex-col items-center justify-center">
+              <i class="fa-solid fa-camera text-blue-600 text-lg"></i>
+              <span class="text-[11px] font-semibold text-slate-700">Tomar Foto VIN</span>
+              <input type="file" accept="image/*" capture="camera" class="hidden" onchange="handleVinFileSelect(event)">
+            </label>
+            <label class="border border-blue-300 bg-white rounded-lg p-2 text-center cursor-pointer hover:bg-blue-50 transition flex flex-col items-center justify-center">
+              <i class="fa-solid fa-image text-blue-600 text-lg"></i>
+              <span class="text-[11px] font-semibold text-slate-700">Galería VIN</span>
+              <input type="file" accept="image/*" class="hidden" onchange="handleVinFileSelect(event)">
+            </label>
+          </div>
+          <div id="vinPreviewContainer" class="hidden relative h-28 rounded-lg overflow-hidden border border-blue-300 bg-black">
+            <img id="vinPreviewImg" class="w-full h-full object-contain" src="" alt="Vista previa VIN">
+            <button type="button" onclick="removeVinFile()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <hr class="border-slate-100 my-2">
+
+        <!-- CASILLA 2: Evidencia de Novedad Independiente -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Casilla 2: Detalle del Defecto y Evidencia
+          </h3>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Componente / Pieza Afectada</label>
+            <input type="text" id="componente" placeholder="Ej: Tanque, Faro delantero, Platón..." class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Defecto / Novedad (Texto Libre)</label>
+            <input type="text" id="tipoDefecto" placeholder="Ej: Rayón profundo en borde izquierdo, mica fisurada..." class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Aprobado Por (Persona)</label>
+              <input type="text" id="aprobadoPor" placeholder="Ej: Juan Pérez / Calidad Proveedor" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Dictamen Final</label>
+              <select id="dictamen" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="Aceptado" class="text-emerald-700 font-bold">Aceptado</option>
+                <option value="Rechazado" class="text-red-700 font-bold">Rechazado</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Controles de Archivo Evidencia -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Evidencia de Novedad (Imagen o Video)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="border-2 border-dashed border-slate-300 bg-white rounded-xl p-3 text-center cursor-pointer hover:border-blue-500 transition-colors flex flex-col items-center justify-center">
+                <i class="fa-solid fa-camera text-xl text-blue-600 mb-1"></i>
+                <span class="text-xs font-semibold text-slate-700">Tomar Foto/Video</span>
+                <input type="file" accept="image/*,video/*" capture="environment" class="hidden" onchange="handleEvidenceFileSelect(event)">
+              </label>
+
+              <label class="border-2 border-dashed border-slate-300 bg-white rounded-xl p-3 text-center cursor-pointer hover:border-blue-500 transition-colors flex flex-col items-center justify-center">
+                <i class="fa-solid fa-folder-open text-xl text-slate-400 mb-1"></i>
+                <span class="text-xs font-semibold text-slate-700">Galería / Archivos</span>
+                <input type="file" accept="image/*,video/*" class="hidden" onchange="handleEvidenceFileSelect(event)">
+              </label>
+            </div>
+            
+            <div id="evidencePreviewContainer" class="mt-2 hidden relative h-36 rounded-lg overflow-hidden border border-slate-300 bg-black flex items-center justify-center">
+              <img id="evidencePreviewImg" class="w-full h-full object-contain hidden" src="" alt="Previsualización Evidencia Foto">
+              <video id="evidencePreviewVid" class="w-full h-full object-contain hidden" controls></video>
+              <button type="button" onclick="removeEvidenceFile()" class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs z-10">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-save"></i> <span>Guardar Novedad y Evidencias</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Panel Derecho: Historial y Buscador -->
+    <section class="lg:col-span-7 space-y-4">
+      
+      <!-- Buscador Directo por VIN -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <label class="block text-xs font-bold text-slate-700 mb-1">Búsqueda Directa por Número VIN</label>
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+          <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Ingresa el VIN para buscar..." class="w-full pl-9 pr-10 py-2 text-sm font-mono bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button onclick="clearSearch()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-sm">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pestañas de Vista -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+          <h2 class="font-bold text-slate-900 text-sm md:text-base">Historial de Calidad e Inspecciones</h2>
+          <span id="recordCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">0 Registros</span>
+        </div>
+
+        <div id="chronologicalTree" class="space-y-3">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <div id="searchResults" class="hidden space-y-4">
+          <!-- Renderizado dinámicamente -->
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL: Gestión de Modelos -->
+  <div id="modelManagerModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-boxes-packing text-blue-600"></i> Administrar Modelos
+        </h3>
+        <button onclick="closeModelManagerModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex gap-2">
+        <input type="text" id="newModelInput" placeholder="Nombre del nuevo modelo..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button onclick="addNewModel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1">
+          <i class="fa-solid fa-plus"></i> Agregar
+        </button>
+      </div>
+
+      <div class="max-h-60 overflow-y-auto space-y-2 pr-1" id="modelListContainer">
+        <!-- Generado dinámicamente -->
+      </div>
+
+      <div class="text-right pt-2 border-t border-slate-100">
+        <button onclick="closeModelManagerModal()" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REPRODUCTOR / VISOR MULTIMEDIA INTEGRADO -->
+  <div id="mediaModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
+    <div class="max-w-3xl w-full bg-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
+      <button onclick="closeMediaModal()" class="absolute top-4 right-4 text-white/80 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center z-10">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+      <div id="modalMediaContent" class="p-2 flex items-center justify-center max-h-[85vh]">
+        <!-- Foto o Reproductor Video HTML5 insertado dinámicamente -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let models = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO"];
+
+    // Datos estructurados con soporte para múltiples defectos por VIN
+    let records = [
+      {
+        id: "REC-1",
+        vin: "9FLHCMZ03VGK29113",
+        orden: "170000007786",
+        linea: "TRICARGO 200",
+        fecha: "2026-03-30 10:59",
+        vinMediaUrl: "image_cf0cd9.png",
+        defectos: [
+          {
+            id: "DEF-1",
+            componente: "Esquina Lateral Trasera",
+            tipoDefecto: "Detalle de acabado en pintura",
+            aprobadoPor: "Inspector 3W",
+            dictamen: "Aceptado",
+            mediaType: "image",
+            mediaUrl: "image_cf0cd9.png"
+          },
+          {
+            id: "DEF-2",
+            componente: "Protector Lateral",
+            tipoDefecto: "Desajuste de perno",
+            aprobadoPor: "Inspector 3W",
+            dictamen: "Aceptado",
+            mediaType: "video",
+            mediaUrl: "https://www.w3schools.com/html/mov_bbb.mp4"
+          }
+        ]
+      }
+    ];
+
+    let currentVinFileUrl = null;
+    let currentEvidenceFileUrl = null;
+    let currentEvidenceFileType = "image";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      populateModelDropdown();
+      renderChronologicalTree();
+    });
+
+    // --- MANEJO DE FOTO DEL VIN (CASILLA 1) ---
+    function handleVinFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        currentVinFileUrl = URL.createObjectURL(file);
+        document.getElementById("vinPreviewImg").src = currentVinFileUrl;
+        document.getElementById("vinPreviewContainer").classList.remove("hidden");
+      }
+    }
+
+    function removeVinFile() {
+      currentVinFileUrl = null;
+      document.getElementById("vinPreviewImg").src = "";
+      document.getElementById("vinPreviewContainer").classList.add("hidden");
+    }
+
+    // --- MANEJO DE EVIDENCIA NOVEDAD (CASILLA 2) ---
+    function handleEvidenceFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      currentEvidenceFileUrl = URL.createObjectURL(file);
+      const isVideo = file.type.startsWith("video/");
+      currentEvidenceFileType = isVideo ? "video" : "image";
+
+      const container = document.getElementById("evidencePreviewContainer");
+      const imgEl = document.getElementById("evidencePreviewImg");
+      const vidEl = document.getElementById("evidencePreviewVid");
+
+      container.classList.remove("hidden");
+
+      if (isVideo) {
+        imgEl.classList.add("hidden");
+        vidEl.classList.remove("hidden");
+        vidEl.src = currentEvidenceFileUrl;
+      } else {
+        vidEl.classList.add("hidden");
+        imgEl.classList.remove("hidden");
+        imgEl.src = currentEvidenceFileUrl;
+      }
+    }
+
+    function removeEvidenceFile() {
+      currentEvidenceFileUrl = null;
+      currentEvidenceFileType = "image";
+      document.getElementById("evidencePreviewImg").src = "";
+      document.getElementById("evidencePreviewVid").src = "";
+      document.getElementById("evidencePreviewContainer").classList.add("hidden");
+    }
+
+    // --- GUARDADO: AGREGA NUEVO DEFECTO AL VIN EXISTENTE O NUEVO REGISTRO ---
+    document.getElementById("qualityForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const editVinId = document.getElementById("editVinId").value;
+      const editDefectId = document.getElementById("editDefectId").value;
+
+      const linea = document.getElementById("linea").value;
+      const orden = document.getElementById("orden").value.trim();
+      const vin = document.getElementById("vin").value.trim().toUpperCase();
+      const componente = document.getElementById("componente").value.trim();
+      const tipoDefecto = document.getElementById("tipoDefecto").value.trim();
+      const aprobadoPor = document.getElementById("aprobadoPor").value.trim();
+      const dictamen = document.getElementById("dictamen").value;
+
+      if (editVinId && editDefectId) {
+        // MODO EDICIÓN DE DEFECTO ESPECÍFICO
+        let rec = records.find(r => r.id === editVinId);
+        if (rec) {
+          rec.linea = linea;
+          rec.orden = orden;
+          rec.vin = vin;
+          if (currentVinFileUrl) rec.vinMediaUrl = currentVinFileUrl;
+
+          let def = rec.defectos.find(d => d.id === editDefectId);
+          if (def) {
+            def.componente = componente;
+            def.tipoDefecto = tipoDefecto;
+            def.aprobadoPor = aprobadoPor;
+            def.dictamen = dictamen;
+            if (currentEvidenceFileUrl) {
+              def.mediaUrl = currentEvidenceFileUrl;
+              def.mediaType = currentEvidenceFileType;
+            }
+          }
+        }
+      } else {
+        // MODO NUEVO O AÑADIR DEFECTO ADICIONAL AL MISMO VEHÍCULO (VIN)
+        let existingRec = records.find(r => r.vin === vin);
+        
+        const finalVinMediaUrl = currentVinFileUrl || "image_cf0fc0.jpg";
+        const finalEvidenceMediaUrl = currentEvidenceFileUrl || finalVinMediaUrl;
+
+        const newDefect = {
+          id: "DEF-" + Date.now(),
+          componente,
+          tipoDefecto,
+          aprobadoPor,
+          dictamen,
+          mediaType: currentEvidenceFileType,
+          mediaUrl: finalEvidenceMediaUrl
+        };
+
+        if (existingRec) {
+          // Si el vehículo ya existe, agregamos este nuevo defecto a su lista sin duplicar el registro general
+          if (currentVinFileUrl) existingRec.vinMediaUrl = currentVinFileUrl;
+          existingRec.defectos.unshift(newDefect);
+        } else {
+          const now = new Date();
+          const timestamp = now.getFullYear() + "-" +
+                            String(now.getMonth() + 1).padStart(2, '0') + "-" +
+                            String(now.getDate()).padStart(2, '0') + " " +
+                            String(now.getHours()).padStart(2, '0') + ":" +
+                            String(now.getMinutes()).padStart(2, '0');
+
+          records.unshift({
+            id: "REC-" + Date.now(),
+            vin,
+            orden,
+            linea,
+            fecha: timestamp,
+            vinMediaUrl: finalVinMediaUrl,
+            defectos: [newDefect]
+          });
+        }
+      }
+
+      // Reiniciar solo los campos de la Casilla 2 (para poder registrar otro defecto rápido al mismo VIN si se desea)
+      document.getElementById("componente").value = "";
+      document.getElementById("tipoDefecto").value = "";
+      removeEvidenceFile();
+
+      renderChronologicalTree();
+    });
+
+    // --- REPRODUCTOR / VISOR MULTIMEDIA INTEGRADO ---
+    function openMediaModal(url, type = 'image') {
+      const modal = document.getElementById("mediaModal");
+      const content = document.getElementById("modalMediaContent");
+      
+      if (type === 'video') {
+        content.innerHTML = `
+          <video controls autoplay class="max-h-[80vh] w-full rounded-lg bg-black">
+            <source src="${url}">
+            Tu navegador no soporta la reproducción de video.
+          </video>`;
+      } else {
+        content.innerHTML = `<img src="${url}" class="max-h-[80vh] w-auto object-contain rounded-lg" onerror="this.src='https://via.placeholder.com/400x300?text=Evidencia+No+Disponible'">`;
+      }
+      
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeMediaModal() {
+      const modal = document.getElementById("mediaModal");
+      const content = document.getElementById("modalMediaContent");
+      content.innerHTML = "";
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    // --- CONSTRUCTOR DE TARJETA DE INSPECCIÓN CON SOPORTE MULTI-DEFECTO ---
+    function buildVinCardHtml(rec) {
+      const defectosHtml = rec.defectos.map(def => `
+        <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-3">
+              <div class="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer flex-shrink-0 group" onclick="openMediaModal('${def.mediaUrl}', '${def.mediaType}')">
+                ${def.mediaType === 'video' ? `
+                  <video src="${def.mediaUrl}" class="w-full h-full object-cover opacity-80"></video>
+                  <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <i class="fa-solid fa-play text-white text-xs bg-red-600 p-1.5 rounded-full"></i>
+                  </div>
+                ` : `
+                  <img src="${def.mediaUrl}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/100?text=Foto'">
+                `}
+              </div>
+              <div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${def.dictamen === 'Aceptado' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+                  ${def.dictamen}
+                </span>
+                <h4 class="font-bold text-xs text-slate-800 mt-1">${def.componente}</h4>
+                <p class="text-xs text-slate-600 font-medium">${def.tipoDefecto}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-solid fa-user-check"></i> Aprueba: <strong>${def.aprobadoPor}</strong></p>
+              </div>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="editDefect('${rec.id}', '${def.id}')" class="text-slate-400 hover:text-blue-600 p-1 rounded-md text-xs" title="Editar"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="deleteDefect('${rec.id}', '${def.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded-md text-xs" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      return `
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
+          <div class="bg-slate-900 text-white px-3 py-2 flex justify-between items-center">
+            <div>
+              <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded mr-2">${rec.linea}</span>
+              <span class="font-mono text-xs font-bold tracking-wider">${rec.vin}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-[11px] text-slate-400 font-mono">Ord: ${rec.orden}</span>
+              <button onclick="quickAddDefectToVin('${rec.vin}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1" title="Agregar otro defecto a este VIN">
+                <i class="fa-solid fa-plus"></i> Otro Defecto
+              </button>
+            </div>
+          </div>
+          
+          <!-- Encabezado con Foto VIN Vinculada -->
+          ${rec.vinMediaUrl ? `
+            <div class="bg-blue-50/50 px-3 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
+              <span class="text-slate-600 text-[11px] font-medium flex items-center gap-1">
+                <i class="fa-solid fa-id-badge text-blue-600"></i> Registro Foto VIN:
+              </span>
+              <button onclick="openMediaModal('${rec.vinMediaUrl}', 'image')" class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1">
+                <i class="fa-solid fa-image"></i> Ver VIN
+              </button>
+            </div>
+          ` : ''}
+
+          <div class="p-3 space-y-2 bg-slate-50/50">
+            ${defectosHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    // Función rápida para cargar datos del VIN al hacer clic en "Otro Defecto" en una tarjeta existente
+    function quickAddDefectToVin(vinVal) {
+      const found = records.find(r => r.vin === vinVal);
+      if (found) {
+        document.getElementById("linea").value = found.linea;
+        document.getElementById("orden").value = found.orden;
+        document.getElementById("vin").value = found.vin;
+        if (found.vinMediaUrl) {
+          currentVinFileUrl = found.vinMediaUrl;
+          document.getElementById("vinPreviewImg").src = found.vinMediaUrl;
+          document.getElementById("vinPreviewContainer").classList.remove("hidden");
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById("componente").focus();
+      }
+    }
+
+    // --- EDICIÓN Y LIMPIEZA ---
+    function editDefect(recId, defId) {
+      const rec = records.find(r => r.id === recId);
+      if (!rec) return;
+      const def = rec.defectos.find(d => d.id === defId);
+      if (!def) return;
+
+      document.getElementById("editVinId").value = rec.id;
+      document.getElementById("editDefectId").value = def.id;
+
+      document.getElementById("linea").value = rec.linea;
+      document.getElementById("orden").value = rec.orden;
+      document.getElementById("vin").value = rec.vin;
+      document.getElementById("componente").value = def.componente;
+      document.getElementById("tipoDefecto").value = def.tipoDefecto;
+      document.getElementById("aprobadoPor").value = def.aprobadoPor;
+      document.getElementById("dictamen").value = def.dictamen;
+
+      if (rec.vinMediaUrl) {
+        currentVinFileUrl = rec.vinMediaUrl;
+        document.getElementById("vinPreviewImg").src = rec.vinMediaUrl;
+        document.getElementById("vinPreviewContainer").classList.remove("hidden");
+      }
+
+      if (def.mediaUrl) {
+        currentEvidenceFileUrl = def.mediaUrl;
+        currentEvidenceFileType = def.mediaType || "image";
+        
+        const container = document.getElementById("evidencePreviewContainer");
+        const imgEl = document.getElementById("evidencePreviewImg");
+        const vidEl = document.getElementById("evidencePreviewVid");
+        container.classList.remove("hidden");
+
+        if (def.mediaType === "video") {
+          imgEl.classList.add("hidden");
+          vidEl.classList.remove("hidden");
+          vidEl.src = def.mediaUrl;
+        } else {
+          vidEl.classList.add("hidden");
+          imgEl.classList.remove("hidden");
+          imgEl.src = def.mediaUrl;
+        }
+      }
+
+      document.getElementById("formTitle").innerText = "Editar Novedad";
+      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-rotate"></i> Actualizar Novedad`;
+      document.getElementById("cancelEditBtn").classList.remove("hidden");
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteDefect(recId, defId) {
+      if (!confirm("¿Seguro que deseas eliminar este defecto registrado?")) return;
+
+      const rec = records.find(r => r.id === recId);
+      if (rec) {
+        rec.defectos = rec.defectos.filter(d => d.id !== defId);
+        if (rec.defectos.length === 0) {
+          records = records.filter(r => r.id !== recId);
+        }
+      }
+      renderChronologicalTree();
+    }
+
+    function resetForm() {
+      document.getElementById("qualityForm").reset();
+      document.getElementById("editVinId").value = "";
+      document.getElementById("editDefectId").value = "";
+      document.getElementById("formTitle").innerText = "Nuevo Registro de Calidad";
+      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-save"></i> Guardar Novedad y Evidencias`;
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+      removeVinFile();
+      removeEvidenceFile();
+    }
+
+    // --- MODELOS Y ÁRBOL CRONOLÓGICO ---
+    function populateModelDropdown() {
+      const select = document.getElementById("linea");
+      select.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+    }
+
+    function openModelManagerModal() {
+      renderModelList();
+      document.getElementById("modelManagerModal").classList.remove("hidden");
+      document.getElementById("modelManagerModal").classList.add("flex");
+    }
+
+    function closeModelManagerModal() {
+      document.getElementById("modelManagerModal").classList.add("hidden");
+      document.getElementById("modelManagerModal").classList.remove("flex");
+    }
+
+    function renderModelList() {
+      const container = document.getElementById("modelListContainer");
+      container.innerHTML = models.map((m, index) => `
+        <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <span class="font-semibold text-sm text-slate-800">${m}</span>
+          <div class="flex gap-1">
+            <button onclick="editModel(${index})" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-pen"></i></button>
+            <button onclick="deleteModel(${index})" class="text-red-600 hover:bg-red-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function addNewModel() {
+      const input = document.getElementById("newModelInput");
+      const val = input.value.trim().toUpperCase();
+      if(val && !models.includes(val)) {
+        models.push(val);
+        input.value = "";
+        populateModelDropdown();
+        renderModelList();
+      }
+    }
+
+    function editModel(index) {
+      const current = models[index];
+      const updated = prompt("Editar nombre del modelo:", current);
+      if(updated && updated.trim() !== "") {
+        models[index] = updated.trim().toUpperCase();
+        populateModelDropdown();
+        renderModelList();
+        renderChronologicalTree();
+      }
+    }
+
+    function deleteModel(index) {
+      if(confirm(`¿Deseas eliminar el modelo "${models[index]}"?`)) {
+        models.splice(index, 1);
+        populateModelDropdown();
+        renderModelList();
+      }
+    }
+
+    function renderChronologicalTree() {
+      const container = document.getElementById("chronologicalTree");
+      container.innerHTML = "";
+      
+      let totalDefects = 0;
+      records.forEach(r => totalDefects += r.defectos.length);
+      document.getElementById("recordCountBadge").innerText = `${records.length} VINs (${totalDefects} Novedades)`;
+
+      if (records.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">No hay inspecciones registradas.</div>`;
+        return;
+      }
+
+      const tree = {};
+      records.forEach(rec => {
+        const [datePart] = rec.fecha.split(" ");
+        const [year, month, day] = datePart.split("-");
+
+        if (!tree[year]) tree[year] = {};
+        if (!tree[year][month]) tree[year][month] = {};
+        if (!tree[year][month][day]) tree[year][month][day] = [];
+
+        tree[year][month][day].push(rec);
+      });
+
+      const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+      Object.keys(tree).sort().reverse().forEach(year => {
+        const yearBlock = document.createElement("details");
+        yearBlock.open = true;
+        yearBlock.className = "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden";
+
+        let monthsHtml = "";
+        Object.keys(tree[year]).sort().reverse().forEach(month => {
+          const monthName = monthNames[parseInt(month) - 1] || month;
+          let daysHtml = "";
+          
+          Object.keys(tree[year][month]).sort().reverse().forEach(day => {
+            const dayRecords = tree[year][month][day];
+            const recordsCardsHtml = dayRecords.map(rec => buildVinCardHtml(rec)).join("");
+
+            daysHtml += `
+              <details open class="ml-2 my-2 border-l-2 border-blue-500 pl-3">
+                <summary class="font-semibold text-xs text-slate-700 cursor-pointer py-1 flex items-center justify-between">
+                  <span><i class="fa-solid fa-calendar-day text-blue-500 mr-1.5"></i> Día ${day}</span>
+                  <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">${dayRecords.length} VINs</span>
+                </summary>
+                <div class="mt-2 space-y-3">
+                  ${recordsCardsHtml}
+                </div>
+              </details>
+            `;
+          });
+
+          monthsHtml += `
+            <details open class="ml-2 my-2 border-l-2 border-slate-300 pl-3">
+              <summary class="font-bold text-xs text-slate-800 cursor-pointer py-1">
+                <i class="fa-solid fa-folder-closed text-amber-500 mr-1.5"></i> ${monthName}
+              </summary>
+              <div>${daysHtml}</div>
+            </details>
+          `;
+        });
+
+        yearBlock.innerHTML = `
+          <summary class="bg-slate-200/70 px-4 py-2.5 font-black text-sm text-slate-800 cursor-pointer flex justify-between items-center">
+            <span><i class="fa-solid fa-calendar text-slate-600 mr-2"></i> Año ${year}</span>
+          </summary>
+          <div class="p-3">${monthsHtml}</div>
+        `;
+
+        container.appendChild(yearBlock);
+      });
+    }
+
+    function handleSearch() {
+      const q = document.getElementById("searchInput").value.trim().toUpperCase();
+      const tree = document.getElementById("chronologicalTree");
+      const resultsContainer = document.getElementById("searchResults");
+
+      if (q === "") {
+        tree.classList.remove("hidden");
+        resultsContainer.classList.add("hidden");
+        return;
+      }
+
+      tree.classList.add("hidden");
+      resultsContainer.classList.remove("hidden");
+
+      const filtered = records.filter(r => r.vin.includes(q) || r.orden.includes(q));
+
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="bg-slate-50 p-6 rounded-xl text-center text-slate-400 border border-slate-200">
+            <i class="fa-solid fa-magnifying-glass text-2xl mb-1"></i>
+            <p class="text-xs">No se encontró ningún VIN que coincida con "${q}"</p>
+          </div>
+        `;
+      } else {
+        resultsContainer.innerHTML = filtered.map(rec => buildVinCardHtml(rec)).join("");
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById("searchInput").value = "";
+      handleSearch();
+    }
+  </script>
+</body>
+</html>
