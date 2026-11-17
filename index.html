@@ -2,12 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
   <title>Calidad Procesos 3W - Control de Defectos por VIN</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    body {
+      min-width: 1240px;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-12">
@@ -19,7 +23,7 @@
         <div class="bg-red-600 p-2 rounded-lg text-white font-black text-xl tracking-wider">3W</div>
         <div>
           <h1 class="font-bold text-base md:text-lg leading-none">Calidad Procesos 3W</h1>
-          <p class="text-[11px] text-slate-400">Inspección de Motocarros & Tricargos</p>
+          <p class="text-[11px] text-slate-400">Inspección de Motocarros & Tricargos (Auteco)</p>
         </div>
       </div>
       <button onclick="openModelManagerModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
@@ -113,7 +117,7 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Aprobado Por (Persona)</label>
-              <input type="text" id="aprobadoPor" placeholder="Ej: Juan Pérez" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+              <input type="text" id="aprobadoPor" placeholder="Ej: Luis Diego Flórez" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Dictamen Final</label>
@@ -233,9 +237,9 @@
   </div>
 
   <script>
-    let models = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO"];
+    let models = JSON.parse(localStorage.getItem("3w_models")) || ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
 
-    let records = [
+    let records = JSON.parse(localStorage.getItem("3w_records")) || [
       {
         id: "REC-1",
         vin: "9FLHCMZ03VGK29113",
@@ -248,7 +252,7 @@
             id: "DEF-1",
             componente: "Esquina Lateral Trasera",
             tipoDefecto: "Detalle de acabado en pintura",
-            aprobadoPor: "Inspector 3W",
+            aprobadoPor: "Luis Diego Flórez",
             dictamen: "Aceptado",
             mediaType: "image",
             mediaUrl: ""
@@ -265,6 +269,16 @@
       populateModelDropdown();
       renderChronologicalTree();
     });
+
+    function saveData() {
+      try {
+        localStorage.setItem("3w_records", JSON.stringify(records));
+        localStorage.setItem("3w_models", JSON.stringify(models));
+      } catch (e) {
+        // En Power Apps con almacenamiento cloud corporativo esto no aplica, pero previene errores locales
+        console.warn("Aviso de almacenamiento local.");
+      }
+    }
 
     function handleVinFileSelect(event) {
       const file = event.target.files[0];
@@ -387,6 +401,7 @@
         }
       }
 
+      saveData();
       document.getElementById("componente").value = "";
       document.getElementById("tipoDefecto").value = "";
       removeEvidenceFile();
@@ -429,7 +444,7 @@
               ${def.mediaUrl ? `
                 <div class="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer flex-shrink-0 group" onclick="openMediaModal('${def.mediaUrl}', '${def.mediaType}')">
                   ${def.mediaType === 'video' ? `
-                    <video src="${def.mediaUrl}" class="w-full h-full object-cover opacity-80"></video>
+                    <video src="${def.mediaUrl}" class="w-full h-full object-cover opacity-80" muted></video>
                     <div class="absolute inset-0 flex items-center justify-center bg-black/30">
                       <i class="fa-solid fa-play text-white text-xs bg-red-600 p-1.5 rounded-full"></i>
                     </div>
@@ -564,6 +579,7 @@
           records = records.filter(r => r.id !== recId);
         }
       }
+      saveData();
       renderChronologicalTree();
     }
 
@@ -601,7 +617,7 @@
           <span class="font-semibold text-sm text-slate-800">${m}</span>
           <div class="flex gap-1">
             <button onclick="editModel(${index})" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-pen"></i></button>
-            <button onclick="deleteModel(${index})" class="text-red-600 hover:bg-red-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-trash"></i></button>
+            <button onclick="deleteModel(${index})" class="text-red-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       `).join("");
@@ -613,6 +629,7 @@
       if(val && !models.includes(val)) {
         models.push(val);
         input.value = "";
+        saveData();
         populateModelDropdown();
         renderModelList();
       }
@@ -623,6 +640,7 @@
       const updated = prompt("Editar nombre del modelo:", current);
       if(updated && updated.trim() !== "") {
         models[index] = updated.trim().toUpperCase();
+        saveData();
         populateModelDropdown();
         renderModelList();
         renderChronologicalTree();
@@ -632,6 +650,7 @@
     function deleteModel(index) {
       if(confirm(`¿Deseas eliminar el modelo "${models[index]}"?`)) {
         models.splice(index, 1);
+        saveData();
         populateModelDropdown();
         renderModelList();
       }
