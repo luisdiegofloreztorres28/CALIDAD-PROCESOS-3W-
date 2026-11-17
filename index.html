@@ -237,60 +237,125 @@
   </div>
 
   <script>
-    let models = JSON.parse(localStorage.getItem("3w_models")) || ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
+    // ==========================================
+    // BASE DE DATOS INDEXEDDB (SOPORTA VIDEOS PESADOS)
+    // ==========================================
+    const DB_NAME = "CalidadProcesos3W_DB";
+    const DB_VERSION = 1;
+    let db;
 
-    let records = JSON.parse(localStorage.getItem("3w_records")) || [
-      {
-        id: "REC-1",
-        vin: "9FLHCMZ03VGK29113",
-        orden: "170000007786",
-        linea: "TRICARGO 200",
-        fecha: "2026-03-30 10:59",
-        vinMediaUrl: "",
-        defectos: [
-          {
-            id: "DEF-1",
-            componente: "Esquina Lateral Trasera",
-            tipoDefecto: "Detalle de acabado en pintura",
-            aprobadoPor: "Luis Diego Flórez",
-            dictamen: "Aceptado",
-            mediaType: "image",
-            mediaUrl: ""
-          }
-        ]
-      }
-    ];
+    let models = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
+    let records = [];
 
-    let currentVinFileUrl = null;
-    let currentEvidenceFileUrl = null;
+    // Guardamos los objetos File/Blob reales para IndexedDB y URLs temporales para vista previa inmediata
+    let currentVinFileBlob = null;
+    let currentVinPreviewUrl = null;
+
+    let currentEvidenceFileBlob = null;
+    let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
 
-    document.addEventListener("DOMContentLoaded", () => {
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains("appState")) {
+            database.createObjectStore("appState", { keyPath: "id" });
+          }
+        };
+
+        request.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    function saveDataToDB() {
+      return new Promise((resolve, reject) => {
+        if (!db) return resolve();
+        const tx = db.transaction("appState", "readwrite");
+        const store = tx.objectStore("appState");
+        store.put({ id: "mainData", records: records, models: models });
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    function loadDataFromDB() {
+      return new Promise((resolve, reject) => {
+        if (!db) return resolve(null);
+        const tx = db.transaction("appState", "readonly");
+        const store = tx.objectStore("appState");
+        const req = store.get("mainData");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // Convertir Blob/File guardado en DB a URL reproducible cada vez que se carga la página
+    function getMediaUrl(mediaData) {
+      if (!mediaData) return "";
+      if (typeof mediaData === "string") return mediaData; // Si ya es URL o Base64
+      if (mediaData instanceof Blob || mediaData instanceof File) {
+        return URL.createObjectURL(mediaData);
+      }
+      return "";
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await initDB();
+      const saved = await loadDataFromDB();
+
+      if (saved && saved.records) {
+        records = saved.records;
+        if (saved.models && saved.models.length > 0) models = saved.models;
+      } else {
+        records = [
+          {
+            id: "REC-1",
+            vin: "9FLHCMZ03VGK29113",
+            orden: "170000007786",
+            linea: "TRICARGO 200",
+            fecha: "2026-03-30 10:59",
+            vinMediaBlob: null,
+            defectos: [
+              {
+                id: "DEF-1",
+                componente: "Esquina Lateral Trasera",
+                tipoDefecto: "Detalle de acabado en pintura",
+                aprobadoPor: "Luis Diego Flórez",
+                dictamen: "Aceptado",
+                mediaType: "image",
+                mediaBlob: null
+              }
+            ]
+          }
+        ];
+        await saveDataToDB();
+      }
+
       populateModelDropdown();
       renderChronologicalTree();
     });
 
-    function saveData() {
-      try {
-        localStorage.setItem("3w_records", JSON.stringify(records));
-        localStorage.setItem("3w_models", JSON.stringify(models));
-      } catch (e) {
-        // En Power Apps con almacenamiento cloud corporativo esto no aplica, pero previene errores locales
-        console.warn("Aviso de almacenamiento local.");
-      }
-    }
-
     function handleVinFileSelect(event) {
       const file = event.target.files[0];
       if (file) {
-        currentVinFileUrl = URL.createObjectURL(file);
-        document.getElementById("vinPreviewImg").src = currentVinFileUrl;
+        currentVinFileBlob = file;
+        currentVinPreviewUrl = URL.createObjectURL(file);
+        document.getElementById("vinPreviewImg").src = currentVinPreviewUrl;
         document.getElementById("vinPreviewContainer").classList.remove("hidden");
       }
     }
 
     function removeVinFile() {
-      currentVinFileUrl = null;
+      currentVinFileBlob = null;
+      currentVinPreviewUrl = null;
       document.getElementById("vinPreviewImg").src = "";
       document.getElementById("vinPreviewContainer").classList.add("hidden");
     }
@@ -299,7 +364,8 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      currentEvidenceFileUrl = URL.createObjectURL(file);
+      currentEvidenceFileBlob = file;
+      currentEvidencePreviewUrl = URL.createObjectURL(file);
       const isVideo = file.type.startsWith("video/");
       currentEvidenceFileType = isVideo ? "video" : "image";
 
@@ -312,23 +378,24 @@
       if (isVideo) {
         imgEl.classList.add("hidden");
         vidEl.classList.remove("hidden");
-        vidEl.src = currentEvidenceFileUrl;
+        vidEl.src = currentEvidencePreviewUrl;
       } else {
         vidEl.classList.add("hidden");
         imgEl.classList.remove("hidden");
-        imgEl.src = currentEvidenceFileUrl;
+        imgEl.src = currentEvidencePreviewUrl;
       }
     }
 
     function removeEvidenceFile() {
-      currentEvidenceFileUrl = null;
+      currentEvidenceFileBlob = null;
+      currentEvidencePreviewUrl = null;
       currentEvidenceFileType = "image";
       document.getElementById("evidencePreviewImg").src = "";
       document.getElementById("evidencePreviewVid").src = "";
       document.getElementById("evidencePreviewContainer").classList.add("hidden");
     }
 
-    document.getElementById("qualityForm").addEventListener("submit", function(e) {
+    document.getElementById("qualityForm").addEventListener("submit", async function(e) {
       e.preventDefault();
 
       const editVinId = document.getElementById("editVinId").value;
@@ -348,7 +415,7 @@
           rec.linea = linea;
           rec.orden = orden;
           rec.vin = vin;
-          if (currentVinFileUrl) rec.vinMediaUrl = currentVinFileUrl;
+          if (currentVinFileBlob) rec.vinMediaBlob = currentVinFileBlob;
 
           let def = rec.defectos.find(d => d.id === editDefectId);
           if (def) {
@@ -356,17 +423,14 @@
             def.tipoDefecto = tipoDefecto;
             def.aprobadoPor = aprobadoPor;
             def.dictamen = dictamen;
-            if (currentEvidenceFileUrl) {
-              def.mediaUrl = currentEvidenceFileUrl;
+            if (currentEvidenceFileBlob) {
+              def.mediaBlob = currentEvidenceFileBlob;
               def.mediaType = currentEvidenceFileType;
             }
           }
         }
       } else {
         let existingRec = records.find(r => r.vin === vin);
-        
-        const finalVinMediaUrl = currentVinFileUrl || "";
-        const finalEvidenceMediaUrl = currentEvidenceFileUrl || "";
 
         const newDefect = {
           id: "DEF-" + Date.now(),
@@ -375,11 +439,11 @@
           aprobadoPor,
           dictamen,
           mediaType: currentEvidenceFileType,
-          mediaUrl: finalEvidenceMediaUrl
+          mediaBlob: currentEvidenceFileBlob || null
         };
 
         if (existingRec) {
-          if (currentVinFileUrl) existingRec.vinMediaUrl = currentVinFileUrl;
+          if (currentVinFileBlob) existingRec.vinMediaBlob = currentVinFileBlob;
           existingRec.defectos.unshift(newDefect);
         } else {
           const now = new Date();
@@ -395,13 +459,13 @@
             orden,
             linea,
             fecha: timestamp,
-            vinMediaUrl: finalVinMediaUrl,
+            vinMediaBlob: currentVinFileBlob || null,
             defectos: [newDefect]
           });
         }
       }
 
-      saveData();
+      await saveDataToDB();
       document.getElementById("componente").value = "";
       document.getElementById("tipoDefecto").value = "";
       removeEvidenceFile();
@@ -409,14 +473,30 @@
       renderChronologicalTree();
     });
 
-    function openMediaModal(url, type = 'image') {
-      if (!url) return;
+    function openMediaModalByIds(recId, defId = null) {
+      const rec = records.find(r => r.id === recId);
+      if (!rec) return;
+
+      let url = "";
+      let type = "image";
+
+      if (defId) {
+        const def = rec.defectos.find(d => d.id === defId);
+        if (!def || !def.mediaBlob) return;
+        url = getMediaUrl(def.mediaBlob);
+        type = def.mediaType || "image";
+      } else {
+        if (!rec.vinMediaBlob) return;
+        url = getMediaUrl(rec.vinMediaBlob);
+        type = "image";
+      }
+
       const modal = document.getElementById("mediaModal");
       const content = document.getElementById("modalMediaContent");
       
       if (type === 'video') {
         content.innerHTML = `
-          <video controls autoplay class="max-h-[80vh] w-full rounded-lg bg-black">
+          <video controls autoplay playsinline class="max-h-[80vh] w-full rounded-lg bg-black">
             <source src="${url}">
             Tu navegador no soporta la reproducción de video.
           </video>`;
@@ -437,19 +517,21 @@
     }
 
     function buildVinCardHtml(rec) {
-      const defectosHtml = rec.defectos.map(def => `
+      const defectosHtml = rec.defectos.map(def => {
+        const mediaUrl = getMediaUrl(def.mediaBlob);
+        return `
         <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-3">
-              ${def.mediaUrl ? `
-                <div class="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer flex-shrink-0 group" onclick="openMediaModal('${def.mediaUrl}', '${def.mediaType}')">
+              ${mediaUrl ? `
+                <div class="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer flex-shrink-0 group" onclick="openMediaModalByIds('${rec.id}', '${def.id}')">
                   ${def.mediaType === 'video' ? `
-                    <video src="${def.mediaUrl}" class="w-full h-full object-cover opacity-80" muted></video>
+                    <video src="${mediaUrl}#t=0.1" preload="metadata" class="w-full h-full object-cover opacity-80" muted></video>
                     <div class="absolute inset-0 flex items-center justify-center bg-black/30">
                       <i class="fa-solid fa-play text-white text-xs bg-red-600 p-1.5 rounded-full"></i>
                     </div>
                   ` : `
-                    <img src="${def.mediaUrl}" class="w-full h-full object-cover">
+                    <img src="${mediaUrl}" class="w-full h-full object-cover">
                   `}
                 </div>
               ` : ''}
@@ -468,7 +550,9 @@
             </div>
           </div>
         </div>
-      `).join("");
+      `}).join("");
+
+      const hasVinMedia = !!rec.vinMediaBlob;
 
       return `
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
@@ -485,12 +569,12 @@
             </div>
           </div>
           
-          ${rec.vinMediaUrl ? `
+          ${hasVinMedia ? `
             <div class="bg-blue-50/50 px-3 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-600 text-[11px] font-medium flex items-center gap-1">
                 <i class="fa-solid fa-id-badge text-blue-600"></i> Registro Foto VIN:
               </span>
-              <button onclick="openMediaModal('${rec.vinMediaUrl}', 'image')" class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1">
+              <button onclick="openMediaModalByIds('${rec.id}')" class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1">
                 <i class="fa-solid fa-image"></i> Ver VIN
               </button>
             </div>
@@ -509,9 +593,9 @@
         document.getElementById("linea").value = found.linea;
         document.getElementById("orden").value = found.orden;
         document.getElementById("vin").value = found.vin;
-        if (found.vinMediaUrl) {
-          currentVinFileUrl = found.vinMediaUrl;
-          document.getElementById("vinPreviewImg").src = found.vinMediaUrl;
+        if (found.vinMediaBlob) {
+          currentVinFileBlob = found.vinMediaBlob;
+          document.getElementById("vinPreviewImg").src = getMediaUrl(found.vinMediaBlob);
           document.getElementById("vinPreviewContainer").classList.remove("hidden");
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -536,15 +620,16 @@
       document.getElementById("aprobadoPor").value = def.aprobadoPor;
       document.getElementById("dictamen").value = def.dictamen;
 
-      if (rec.vinMediaUrl) {
-        currentVinFileUrl = rec.vinMediaUrl;
-        document.getElementById("vinPreviewImg").src = rec.vinMediaUrl;
+      if (rec.vinMediaBlob) {
+        currentVinFileBlob = rec.vinMediaBlob;
+        document.getElementById("vinPreviewImg").src = getMediaUrl(rec.vinMediaBlob);
         document.getElementById("vinPreviewContainer").classList.remove("hidden");
       }
 
-      if (def.mediaUrl) {
-        currentEvidenceFileUrl = def.mediaUrl;
+      if (def.mediaBlob) {
+        currentEvidenceFileBlob = def.mediaBlob;
         currentEvidenceFileType = def.mediaType || "image";
+        const previewUrl = getMediaUrl(def.mediaBlob);
         
         const container = document.getElementById("evidencePreviewContainer");
         const imgEl = document.getElementById("evidencePreviewImg");
@@ -554,11 +639,11 @@
         if (def.mediaType === "video") {
           imgEl.classList.add("hidden");
           vidEl.classList.remove("hidden");
-          vidEl.src = def.mediaUrl;
+          vidEl.src = previewUrl;
         } else {
           vidEl.classList.add("hidden");
           imgEl.classList.remove("hidden");
-          imgEl.src = def.mediaUrl;
+          imgEl.src = previewUrl;
         }
       }
 
@@ -569,7 +654,7 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function deleteDefect(recId, defId) {
+    async function deleteDefect(recId, defId) {
       if (!confirm("¿Seguro que deseas eliminar este defecto registrado?")) return;
 
       const rec = records.find(r => r.id === recId);
@@ -579,7 +664,7 @@
           records = records.filter(r => r.id !== recId);
         }
       }
-      saveData();
+      await saveDataToDB();
       renderChronologicalTree();
     }
 
@@ -623,34 +708,34 @@
       `).join("");
     }
 
-    function addNewModel() {
+    async function addNewModel() {
       const input = document.getElementById("newModelInput");
       const val = input.value.trim().toUpperCase();
       if(val && !models.includes(val)) {
         models.push(val);
         input.value = "";
-        saveData();
+        await saveDataToDB();
         populateModelDropdown();
         renderModelList();
       }
     }
 
-    function editModel(index) {
+    async function editModel(index) {
       const current = models[index];
       const updated = prompt("Editar nombre del modelo:", current);
       if(updated && updated.trim() !== "") {
         models[index] = updated.trim().toUpperCase();
-        saveData();
+        await saveDataToDB();
         populateModelDropdown();
         renderModelList();
         renderChronologicalTree();
       }
     }
 
-    function deleteModel(index) {
+    async function deleteModel(index) {
       if(confirm(`¿Deseas eliminar el modelo "${models[index]}"?`)) {
         models.splice(index, 1);
-        saveData();
+        await saveDataToDB();
         populateModelDropdown();
         renderModelList();
       }
