@@ -2,188 +2,979 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calidad Procesos 3W - Control de Defectos por VIN</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-    body {
-      min-width: 1240px;
-      overflow-x: auto;
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --emerald: #059669;
+      --emerald-soft: #d1fae5;
+      --emerald-ink: #065f46;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --red-ink: #991b1b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .native-file-overlay {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.001;
+      cursor: pointer;
+      z-index: 4;
+      font-size: 0;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .app-header {
+      background-color: #0f172a;
+      color: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+    }
+
+    .app-header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-badge {
+      background-color: #dc2626;
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 18px;
+      padding: 8px 11px;
+      border-radius: 10px;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: #ffffff;
+    }
+
+    .brand-sub {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .btn-models {
+      background-color: #1e293b;
+      color: #ffffff;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .btn-models:hover {
+      background-color: #334155;
+    }
+
+    .app-main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      padding-bottom: 48px;
+    }
+
+    @media (min-width: 1024px) {
+      .app-main {
+        grid-template-columns: 440px minmax(0, 1fr);
+        padding: 24px 16px 48px;
+        gap: 24px;
+        align-items: start;
+      }
+    }
+
+    .card-panel {
+      background-color: var(--surface);
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    @media (min-width: 768px) {
+      .card-panel {
+        padding: 22px;
+      }
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-count {
+      font-size: 11px;
+      font-weight: 700;
+      background-color: #f1f5f9;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .btn-cancel-edit {
+      font-size: 12px;
+      font-weight: 600;
+      background-color: #e2e8f0;
+      color: #334155;
+      border: 0;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .link-add-model {
+      font-size: 11px;
+      font-weight: 700;
+      color: #2563eb;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+
+    .field-row-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 5px;
+    }
+
+    .input-control, .select-control {
+      width: 100%;
+      max-width: 100%;
+      background-color: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .input-control:focus, .select-control:focus {
+      outline: 2px solid var(--blue);
+      outline-offset: 1px;
+      background-color: #ffffff;
+    }
+
+    .box-vin {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .box-defect {
+      background-color: var(--surface-soft);
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .pick-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .pick-btn {
+      position: relative;
+      overflow: hidden;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      min-width: 0;
+      width: 100%;
+      user-select: none;
+    }
+
+    .pick-btn-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      pointer-events: none;
+    }
+
+    .pick-btn-blue {
+      border-color: #93c5fd;
+      color: #1e3a8a;
+    }
+
+    .pick-btn-dashed {
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 12px 8px;
+    }
+
+    .fallback-bar {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .fallback-chip {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #1e293b;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .fallback-chip:hover {
+      background-color: #f1f5f9;
+    }
+
+    .preview-box-vin {
+      position: relative;
+      height: 120px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #93c5fd;
+      background-color: #0f172a;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-box-ev {
+      position: relative;
+      height: 160px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      background-color: #0f172a;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-media {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .btn-remove-media {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background-color: #dc2626;
+      color: #ffffff;
+      border: 0;
+      border-radius: 999px;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background-color: var(--blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-submit:hover {
+      background-color: var(--blue-dark);
+    }
+
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .btn-clear-search {
+      position: absolute;
+      right: 10px;
+      background: transparent;
+      border: 0;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    .tree-year {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .tree-year-summary {
+      background-color: #e2e8f0;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #1e293b;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .tree-year-body {
+      padding: 10px;
+    }
+
+    .tree-month {
+      margin-left: 4px;
+      margin-bottom: 8px;
+      border-left: 2px solid #cbd5e1;
+      padding-left: 10px;
+    }
+
+    .tree-month-summary {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .tree-day {
+      margin-left: 4px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+      border-left: 2px solid #3b82f6;
+      padding-left: 10px;
+    }
+
+    .tree-day-summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .day-badge {
+      font-size: 10px;
+      font-weight: 700;
+      background-color: #dbeafe;
+      color: #1e40af;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .vin-card {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    .vin-card-head {
+      background-color: #0f172a;
+      color: #ffffff;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .vin-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .vin-model-pill {
+      background-color: #2563eb;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .vin-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      word-break: break-all;
+    }
+
+    .vin-order-text {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+
+    .btn-add-defect {
+      background-color: #059669;
+      color: #ffffff;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .vin-photo-bar {
+      background-color: #eff6ff;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .btn-view-vin {
+      background: transparent;
+      border: 0;
+      color: #2563eb;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px;
+    }
+
+    .vin-card-body {
+      padding: 10px;
+      background-color: #f8fafc;
+    }
+
+    .defect-item {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .defect-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .defect-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .defect-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .thumb-box {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: #0f172a;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .thumb-media {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.32);
+    }
+
+    .play-circle {
+      background-color: #dc2626;
+      color: #ffffff;
+      border-radius: 999px;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .dictamen-pill {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .dictamen-ok {
+      background-color: var(--emerald-soft);
+      color: var(--emerald-ink);
+    }
+
+    .dictamen-no {
+      background-color: var(--red-soft);
+      color: var(--red-ink);
+    }
+
+    .defect-comp {
+      margin: 5px 0 2px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      word-break: break-word;
+    }
+
+    .defect-desc {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: #475569;
+      word-break: break-word;
+    }
+
+    .defect-approver {
+      margin: 5px 0 0;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .defect-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-icon-action {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background-color: #f8fafc;
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .btn-icon-action:hover {
+      background-color: #eff6ff;
+      color: #2563eb;
+      border-color: #bfdbfe;
+    }
+
+    .btn-icon-delete:hover {
+      background-color: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.65);
+      z-index: 50;
+      padding: 16px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.hidden {
+      display: none !important;
+    }
+
+    .modal-backdrop.flex {
+      display: flex !important;
+    }
+
+    .modal-card-models {
+      background-color: #ffffff;
+      border-radius: 16px;
+      max-width: 440px;
+      width: 100%;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .modal-card-media {
+      background-color: #0f172a;
+      border-radius: 16px;
+      max-width: 820px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-12">
+<body>
 
-  <!-- Encabezado Móvil / Desktop -->
-  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
-    <div class="max-w-[1400px] mx-auto px-4 py-3 flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <div class="bg-red-600 p-2 rounded-lg text-white font-black text-xl tracking-wider">3W</div>
+  <!-- Encabezado -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="brand-box">
+        <div class="brand-badge">3W</div>
         <div>
-          <h1 class="font-bold text-base md:text-lg leading-none">Calidad Procesos 3W</h1>
-          <p class="text-[11px] text-slate-400">Inspección de Motocarros & Tricargos (Auteco)</p>
+          <h1 class="brand-title">Calidad Procesos 3W</h1>
+          <p class="brand-sub">Inspección de Motocarros &amp; Tricargos (Auteco)</p>
         </div>
       </div>
-      <button onclick="openModelManagerModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+      <button type="button" onclick="openModelManagerModal()" class="btn-models">
         <i class="fa-solid fa-gear text-amber-400"></i>
         <span>Gestionar Modelos</span>
       </button>
     </div>
   </header>
 
-  <main class="max-w-[1400px] mx-auto px-4 py-6 flex flex-row gap-6 overflow-x-auto" style="min-width: 1200px;">
+  <main class="app-main">
 
     <!-- Panel Izquierdo: Formulario de Inspección -->
-    <section class="w-[450px] flex-shrink-0 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-      <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
-        <h2 class="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-clipboard-check text-blue-600"></i> <span id="formTitle">Nuevo Registro de Calidad</span>
+    <section class="card-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          <i class="fa-solid fa-clipboard-check text-blue-600"></i>
+          <span id="formTitle">Nuevo Registro de Calidad</span>
         </h2>
-        <button id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded-md font-medium">Cancelar Edición</button>
+        <button id="cancelEditBtn" type="button" onclick="resetForm()" class="hidden btn-cancel-edit">
+          Cancelar Edición
+        </button>
       </div>
 
-      <form id="qualityForm" class="space-y-4">
+      <form id="qualityForm">
         <input type="hidden" id="editVinId" value="">
         <input type="hidden" id="editDefectId" value="">
 
         <!-- Selección de Vehículo / Modelo -->
-        <div>
+        <div class="field-group">
           <div class="flex justify-between items-center mb-1">
-            <label class="block text-xs font-semibold text-slate-600">Modelo / Línea</label>
-            <button type="button" onclick="openModelManagerModal()" class="text-[11px] text-blue-600 hover:underline"><i class="fa-solid fa-plus"></i> Añadir Modelo</button>
+            <label for="linea" class="field-label m-0">Modelo / Línea</label>
+            <button type="button" onclick="openModelManagerModal()" class="link-add-model">
+              <i class="fa-solid fa-plus"></i> Añadir Modelo
+            </button>
           </div>
-          <select id="linea" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" required>
+          <select id="linea" class="select-control font-medium" required>
             <!-- Se llena dinámicamente con JS -->
           </select>
         </div>
 
         <!-- Identificadores (Orden y VIN) -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="field-row-2">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Orden / Pedido</label>
-            <input type="text" id="orden" placeholder="Ej: 170000007785" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+            <label for="orden" class="field-label">Orden / Pedido</label>
+            <input type="text" id="orden" placeholder="Ej: 170000007785" class="input-control font-mono" required>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Número VIN (Chasis)</label>
-            <input type="text" id="vin" placeholder="Ej: 9FLHCMZ00VGK29117" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono uppercase font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+            <label for="vin" class="field-label">Número VIN (Chasis)</label>
+            <input type="text" id="vin" placeholder="Ej: 9FLHCMZ00VGK29117" class="input-control font-mono uppercase font-bold" required>
           </div>
         </div>
 
         <!-- CASILLA 1: Foto del VIN Independiente -->
-        <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-200 space-y-2">
-          <label class="block text-xs font-bold text-blue-900">
+        <div class="box-vin">
+          <span class="block text-xs font-bold text-blue-900">
             <i class="fa-solid fa-id-card text-blue-600 mr-1"></i> Casilla 1: Foto de la Etiqueta / Chasis VIN
-          </label>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="border border-blue-300 bg-white rounded-lg p-2 text-center cursor-pointer hover:bg-blue-50 transition flex flex-col items-center justify-center">
-              <i class="fa-solid fa-camera text-blue-600 text-lg"></i>
-              <span class="text-[11px] font-semibold text-slate-700">Tomar Foto VIN</span>
-              <input type="file" accept="image/*" capture="camera" class="hidden" onchange="handleVinFileSelect(event)">
+          </span>
+          <div class="pick-grid">
+            <label for="vinCameraInput" class="pick-btn pick-btn-blue" onpointerdown="armPowerAppsFallback('vin', 'camera')">
+              <span class="pick-btn-content">
+                <i class="fa-solid fa-camera text-blue-600 text-lg"></i>
+                <span>Tomar Foto VIN</span>
+              </span>
+              <input id="vinCameraInput" type="file" accept="image/*" capture="environment" class="native-file-overlay" onchange="handleVinFileSelect(event)">
             </label>
-            <label class="border border-blue-300 bg-white rounded-lg p-2 text-center cursor-pointer hover:bg-blue-50 transition flex flex-col items-center justify-center">
-              <i class="fa-solid fa-image text-blue-600 text-lg"></i>
-              <span class="text-[11px] font-semibold text-slate-700">Galería VIN</span>
-              <input type="file" accept="image/*" class="hidden" onchange="handleVinFileSelect(event)">
+            <label for="vinGalleryInput" class="pick-btn pick-btn-blue" onpointerdown="armPowerAppsFallback('vin', 'gallery')">
+              <span class="pick-btn-content">
+                <i class="fa-solid fa-image text-blue-600 text-lg"></i>
+                <span>Galería VIN</span>
+              </span>
+              <input id="vinGalleryInput" type="file" accept="image/*" class="native-file-overlay" onchange="handleVinFileSelect(event)">
             </label>
           </div>
-          <div id="vinPreviewContainer" class="hidden relative h-28 rounded-lg overflow-hidden border border-blue-300 bg-black">
-            <img id="vinPreviewImg" class="w-full h-full object-contain" src="" alt="Vista previa VIN">
-            <button type="button" onclick="removeVinFile()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
+          <div class="fallback-bar">
+            <button type="button" onclick="openLiveCameraModal('vin', 'photo')" class="fallback-chip">
+              <i class="fa-solid fa-video text-blue-600"></i> Cámara en vivo VIN
+            </button>
+          </div>
+
+          <div id="vinPreviewContainer" class="hidden preview-box-vin">
+            <img id="vinPreviewImg" class="hidden preview-media" alt="Vista previa VIN">
+            <button type="button" onclick="removeVinFile()" class="btn-remove-media" title="Quitar foto VIN">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
         </div>
 
-        <hr class="border-slate-100 my-2">
-
         <!-- CASILLA 2: Evidencia de Novedad Independiente -->
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+        <div class="box-defect">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mt-0 mb-3">
             <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Casilla 2: Detalle del Defecto y Evidencia
           </h3>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Componente / Pieza Afectada</label>
-            <input type="text" id="componente" placeholder="Ej: Tanque, Faro delantero, Platón..." class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          <div class="field-group">
+            <label for="componente" class="field-label">Componente / Pieza Afectada</label>
+            <input type="text" id="componente" placeholder="Ej: Tanque, Faro delantero, Platón..." class="input-control bg-white" required>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Defecto / Novedad (Texto Libre)</label>
-            <input type="text" id="tipoDefecto" placeholder="Ej: Rayón profundo en borde izquierdo..." class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+          <div class="field-group">
+            <label for="tipoDefecto" class="field-label">Tipo de Defecto / Novedad (Texto Libre)</label>
+            <input type="text" id="tipoDefecto" placeholder="Ej: Rayón profundo en borde izquierdo..." class="input-control bg-white" required>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="field-row-2">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Aprobado Por (Persona)</label>
-              <input type="text" id="aprobadoPor" placeholder="Ej: Luis Diego Flórez" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+              <label for="aprobadoPor" class="field-label">Aprobado Por (Persona)</label>
+              <input type="text" id="aprobadoPor" placeholder="Ej: Luis Diego Flórez" class="input-control bg-white" required>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Dictamen Final</label>
-              <select id="dictamen" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                <option value="Aceptado" class="text-emerald-700 font-bold">Aceptado</option>
-                <option value="Rechazado" class="text-red-700 font-bold">Rechazado</option>
+              <label for="dictamen" class="field-label">Dictamen Final</label>
+              <select id="dictamen" class="select-control bg-white font-bold">
+                <option value="Aceptado">Aceptado</option>
+                <option value="Rechazado">Rechazado</option>
               </select>
             </div>
           </div>
 
           <!-- Controles de Archivo Evidencia -->
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Evidencia de Novedad (Imagen o Video)</label>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="border-2 border-dashed border-slate-300 bg-white rounded-xl p-3 text-center cursor-pointer hover:border-blue-500 transition-colors flex flex-col items-center justify-center">
-                <i class="fa-solid fa-camera text-xl text-blue-600 mb-1"></i>
-                <span class="text-xs font-semibold text-slate-700">Tomar Foto/Video</span>
-                <input type="file" accept="image/*,video/*" capture="environment" class="hidden" onchange="handleEvidenceFileSelect(event)">
+            <span class="field-label">Evidencia de Novedad (Imagen o Video)</span>
+            <div class="pick-grid">
+              <label for="evCameraInput" class="pick-btn pick-btn-dashed" onpointerdown="armPowerAppsFallback('evidence', 'camera')">
+                <span class="pick-btn-content">
+                  <i class="fa-solid fa-camera text-xl text-blue-600"></i>
+                  <span>Tomar Foto/Video</span>
+                </span>
+                <input id="evCameraInput" type="file" accept="image/*,video/*" class="native-file-overlay" onchange="handleEvidenceFileSelect(event)">
               </label>
 
-              <label class="border-2 border-dashed border-slate-300 bg-white rounded-xl p-3 text-center cursor-pointer hover:border-blue-500 transition-colors flex flex-col items-center justify-center">
-                <i class="fa-solid fa-folder-open text-xl text-slate-400 mb-1"></i>
-                <span class="text-xs font-semibold text-slate-700">Galería / Archivos</span>
-                <input type="file" accept="image/*,video/*" class="hidden" onchange="handleEvidenceFileSelect(event)">
+              <label for="evGalleryInput" class="pick-btn pick-btn-dashed" onpointerdown="armPowerAppsFallback('evidence', 'gallery')">
+                <span class="pick-btn-content">
+                  <i class="fa-solid fa-folder-open text-xl text-slate-500"></i>
+                  <span>Galería / Archivos</span>
+                </span>
+                <input id="evGalleryInput" type="file" accept="image/*,video/*" class="native-file-overlay" onchange="handleEvidenceFileSelect(event)">
               </label>
             </div>
-            
-            <div id="evidencePreviewContainer" class="mt-2 hidden relative h-36 rounded-lg overflow-hidden border border-slate-300 bg-black flex items-center justify-center">
-              <img id="evidencePreviewImg" class="w-full h-full object-contain hidden" src="" alt="Previsualización Evidencia Foto">
-              <video id="evidencePreviewVid" class="w-full h-full object-contain hidden" controls></video>
-              <button type="button" onclick="removeEvidenceFile()" class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs z-10">
+            <div class="fallback-bar">
+              <button type="button" onclick="openLiveCameraModal('evidence', 'photo')" class="fallback-chip">
+                <i class="fa-solid fa-camera text-blue-600"></i> Foto en vivo
+              </button>
+              <button type="button" onclick="openLiveCameraModal('evidence', 'video')" class="fallback-chip">
+                <i class="fa-solid fa-video text-red-600"></i> Grabar video en vivo
+              </button>
+            </div>
+
+            <div id="evidencePreviewContainer" class="hidden preview-box-ev">
+              <img id="evidencePreviewImg" class="hidden preview-media" alt="Previsualización Evidencia Foto">
+              <video id="evidencePreviewVid" class="hidden preview-media" controls playsinline preload="metadata"></video>
+              <button type="button" onclick="removeEvidenceFile()" class="btn-remove-media" title="Quitar evidencia">
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
           </div>
         </div>
 
-        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+        <button type="submit" id="submitBtn" class="btn-submit">
           <i class="fa-solid fa-save"></i> <span>Guardar Novedad y Evidencias</span>
         </button>
       </form>
     </section>
 
     <!-- Panel Derecho: Historial y Buscador -->
-    <section class="w-[700px] flex-shrink-0 space-y-4">
-      
+    <section class="right-column">
+
       <!-- Buscador Directo por VIN -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <label class="block text-xs font-bold text-slate-700 mb-1">Búsqueda Directa por Número VIN</label>
-        <div class="relative">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
-          <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Ingresa el VIN para buscar..." class="w-full pl-9 pr-10 py-2 text-sm font-mono bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <button onclick="clearSearch()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-sm">
+      <div class="card-panel py-4">
+        <label for="searchInput" class="field-label font-bold text-slate-700">Búsqueda Directa por Número VIN</label>
+        <div class="search-wrap">
+          <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Ingresa el VIN para buscar..." class="input-control font-mono pr-10">
+          <button type="button" onclick="clearSearch()" class="btn-clear-search" title="Limpiar búsqueda">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
 
-      <!-- Pestañas de Vista -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-          <h2 class="font-bold text-slate-900 text-sm md:text-base">Historial de Calidad e Inspecciones</h2>
-          <span id="recordCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">0 Registros</span>
+      <!-- Historial Cronológico Año > Mes > Día -->
+      <div class="card-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Historial de Calidad e Inspecciones</h2>
+          <span id="recordCountBadge" class="badge-count">0 Registros</span>
         </div>
 
-        <div id="chronologicalTree" class="space-y-3">
+        <div id="chronologicalTree">
           <!-- Renderizado dinámicamente -->
         </div>
 
@@ -195,59 +986,84 @@
     </section>
   </main>
 
+  <!-- MODAL: Cámara en Vivo (Respaldo si el visor/Power Apps bloquea input file) -->
+  <div id="liveCameraModal" class="modal-backdrop hidden">
+    <div class="modal-card-media p-4 text-white">
+      <div class="flex items-center justify-between mb-3">
+        <h3 id="liveCameraTitle" class="text-sm font-bold m-0">Cámara en Vivo</h3>
+        <button type="button" onclick="closeLiveCameraModal()" class="btn-remove-media static" style="width:30px;height:30px;background-color:#334155;" title="Cerrar cámara">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="bg-black rounded-xl overflow-hidden flex items-center justify-center max-h-[60vh]">
+        <video id="liveCameraStreamVideo" autoplay playsinline muted class="w-full max-h-[60vh] object-contain"></video>
+      </div>
+      <div id="liveCameraStatus" class="text-xs text-slate-300 mt-2 text-center"></div>
+      <div class="flex flex-wrap gap-2 justify-center mt-3">
+        <button type="button" id="btnSnapPhoto" onclick="captureLivePhoto()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
+          <i class="fa-solid fa-camera"></i> Tomar Foto
+        </button>
+        <button type="button" id="btnStartRecord" onclick="startLiveVideoRecording()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
+          <i class="fa-solid fa-record-vinyl"></i> Iniciar Video
+        </button>
+        <button type="button" id="btnStopRecord" onclick="stopLiveVideoRecording()" class="hidden bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
+          <i class="fa-solid fa-stop"></i> Detener y Usar Video
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Gestión de Modelos -->
-  <div id="modelManagerModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4">
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-5 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+  <div id="modelManagerModal" class="modal-backdrop hidden">
+    <div class="modal-card-models">
+      <div class="panel-header">
+        <h3 class="panel-title">
           <i class="fa-solid fa-boxes-packing text-blue-600"></i> Administrar Modelos
         </h3>
-        <button onclick="closeModelManagerModal()" class="text-slate-400 hover:text-slate-600">
+        <button type="button" onclick="closeModelManagerModal()" class="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <div class="flex gap-2">
-        <input type="text" id="newModelInput" placeholder="Nombre del nuevo modelo..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button onclick="addNewModel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1">
+      <div class="flex gap-2 mb-3">
+        <input type="text" id="newModelInput" placeholder="Nombre del nuevo modelo..." class="input-control flex-1">
+        <button type="button" onclick="addNewModel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1 border-0 cursor-pointer shrink-0">
           <i class="fa-solid fa-plus"></i> Agregar
         </button>
       </div>
 
-      <div class="max-h-60 overflow-y-auto space-y-2 pr-1" id="modelListContainer">
+      <div class="max-h-60 overflow-y-auto space-y-2 pr-1 mb-3" id="modelListContainer">
         <!-- Generado dinámicamente -->
       </div>
 
-      <div class="text-right pt-2 border-t border-slate-100">
-        <button onclick="closeModelManagerModal()" class="bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs">Cerrar</button>
+      <div class="text-right pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModelManagerModal()" class="btn-cancel-edit">Cerrar</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL REPRODUCTOR / VISOR MULTIMEDIA INTEGRADO -->
-  <div id="mediaModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
-    <div class="max-w-3xl w-full bg-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
-      <button onclick="closeMediaModal()" class="absolute top-4 right-4 text-white/80 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center z-10">
-        <i class="fa-solid fa-xmark text-lg"></i>
+  <div id="mediaModal" class="modal-backdrop hidden">
+    <div class="modal-card-media">
+      <button type="button" onclick="closeMediaModal()" class="btn-remove-media" style="top:12px;right:12px;width:36px;height:36px;background-color:#1e293b;font-size:14px;" title="Cerrar visor">
+        <i class="fa-solid fa-xmark"></i>
       </button>
-      <div id="modalMediaContent" class="p-2 flex items-center justify-center max-h-[85vh]">
+      <div id="modalMediaContent" class="p-3 flex items-center justify-center max-h-[85vh]">
         <!-- Foto o Reproductor Video HTML5 insertado dinámicamente -->
       </div>
     </div>
   </div>
 
   <script>
-    // ==========================================
-    // BASE DE DATOS INDEXEDDB (SOPORTA VIDEOS PESADOS)
-    // ==========================================
     const DB_NAME = "CalidadProcesos3W_DB";
     const DB_VERSION = 1;
-    let db;
+    let db = null;
 
-    let models = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
+    const DEFAULT_MODELS = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
+    let models = [...DEFAULT_MODELS];
     let records = [];
+    const activeObjectUrls = [];
 
-    // Guardamos los objetos File/Blob reales para IndexedDB y URLs temporales para vista previa inmediata
     let currentVinFileBlob = null;
     let currentVinPreviewUrl = null;
 
@@ -255,65 +1071,358 @@
     let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
 
+    let liveStream = null;
+    let liveTargetSlot = "vin";
+    let liveMediaRecorder = null;
+    let liveRecordedChunks = [];
+
+    let pendingMediaSelection = false;
+    let fallbackTimer = null;
+
+    function createSafeObjectUrl(blob) {
+      const url = URL.createObjectURL(blob);
+      activeObjectUrls.push(url);
+      return url;
+    }
+
+    function revokeRenderedUrls() {
+      while (activeObjectUrls.length > 0) {
+        const u = activeObjectUrls.pop();
+        try { URL.revokeObjectURL(u); } catch (_) {}
+      }
+    }
+
     function initDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+      return new Promise((resolve) => {
+        if (!window.indexedDB) return resolve(null);
+        try {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onupgradeneeded = (e) => {
-          const database = e.target.result;
-          if (!database.objectStoreNames.contains("appState")) {
-            database.createObjectStore("appState", { keyPath: "id" });
-          }
-        };
+          request.onupgradeneeded = (e) => {
+            const database = e.target.result;
+            if (!database.objectStoreNames.contains("appState")) {
+              database.createObjectStore("appState", { keyPath: "id" });
+            }
+          };
 
-        request.onsuccess = (e) => {
-          db = e.target.result;
-          resolve(db);
-        };
+          request.onsuccess = (e) => {
+            db = e.target.result;
+            resolve(db);
+          };
 
-        request.onerror = (e) => reject(e.target.error);
+          request.onerror = () => resolve(null);
+        } catch (_) {
+          resolve(null);
+        }
       });
     }
 
     function saveDataToDB() {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         if (!db) return resolve();
-        const tx = db.transaction("appState", "readwrite");
-        const store = tx.objectStore("appState");
-        store.put({ id: "mainData", records: records, models: models });
-        tx.oncomplete = () => resolve();
-        tx.onerror = (e) => reject(e.target.error);
+        try {
+          const tx = db.transaction("appState", "readwrite");
+          const store = tx.objectStore("appState");
+          store.put({ id: "mainData", records: records, models: models });
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        } catch (_) {
+          resolve();
+        }
       });
     }
 
     function loadDataFromDB() {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         if (!db) return resolve(null);
-        const tx = db.transaction("appState", "readonly");
-        const store = tx.objectStore("appState");
-        const req = store.get("mainData");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = (e) => reject(e.target.error);
+        try {
+          const tx = db.transaction("appState", "readonly");
+          const store = tx.objectStore("appState");
+          const req = store.get("mainData");
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch (_) {
+          resolve(null);
+        }
       });
     }
 
-    // Convertir Blob/File guardado en DB a URL reproducible cada vez que se carga la página
+    async function persistState(actionEvent = null) {
+      await saveDataToDB();
+
+      if (window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onSaveAll === "function") {
+        try {
+          const cloudResp = await window.CALIDAD_CLOUD_CONFIG.onSaveAll({
+            action: actionEvent ? actionEvent.action : "SYNC",
+            event: actionEvent,
+            records,
+            models
+          });
+          if (cloudResp && Array.isArray(cloudResp.records)) {
+            records = cloudResp.records;
+            if (Array.isArray(cloudResp.models) && cloudResp.models.length > 0) {
+              models = cloudResp.models;
+            }
+            await saveDataToDB();
+            populateModelDropdown();
+            renderChronologicalTree();
+            handleSearch();
+          }
+        } catch (err) {
+          console.error("Error al sincronizar con la nube:", err);
+        }
+      }
+
+      if (window.parent && window.parent !== window && actionEvent) {
+        try {
+          window.parent.postMessage({
+            ...actionEvent,
+            records,
+            models
+          }, "*");
+        } catch (_) {}
+      }
+    }
+
     function getMediaUrl(mediaData) {
       if (!mediaData) return "";
-      if (typeof mediaData === "string") return mediaData; // Si ya es URL o Base64
+      if (typeof mediaData === "string") return mediaData;
       if (mediaData instanceof Blob || mediaData instanceof File) {
-        return URL.createObjectURL(mediaData);
+        return createSafeObjectUrl(mediaData);
       }
       return "";
     }
 
+    function escapeAttr(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function setVinPreview(url) {
+      const container = document.getElementById("vinPreviewContainer");
+      const imgEl = document.getElementById("vinPreviewImg");
+      if (url) {
+        imgEl.src = url;
+        imgEl.classList.remove("hidden");
+        container.classList.remove("hidden");
+      } else {
+        imgEl.removeAttribute("src");
+        imgEl.classList.add("hidden");
+        container.classList.add("hidden");
+      }
+    }
+
+    function setEvidencePreview(url, type = "image") {
+      const container = document.getElementById("evidencePreviewContainer");
+      const imgEl = document.getElementById("evidencePreviewImg");
+      const vidEl = document.getElementById("evidencePreviewVid");
+
+      if (!url) {
+        imgEl.removeAttribute("src");
+        imgEl.classList.add("hidden");
+        try { vidEl.pause(); } catch (_) {}
+        vidEl.removeAttribute("src");
+        vidEl.classList.add("hidden");
+        container.classList.add("hidden");
+        return;
+      }
+
+      container.classList.remove("hidden");
+      if (type === "video") {
+        imgEl.removeAttribute("src");
+        imgEl.classList.add("hidden");
+        vidEl.src = url;
+        vidEl.classList.remove("hidden");
+      } else {
+        try { vidEl.pause(); } catch (_) {}
+        vidEl.removeAttribute("src");
+        vidEl.classList.add("hidden");
+        imgEl.src = url;
+        imgEl.classList.remove("hidden");
+      }
+    }
+
+    function dataUrlToBlob(dataUrl, fallbackMime = "image/jpeg") {
+      try {
+        const parts = dataUrl.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = (mimeMatch && mimeMatch[1]) || fallbackMime;
+        const binary = atob(parts[1]);
+        const len = binary.length;
+        const u8 = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          u8[i] = binary.charCodeAt(i);
+        }
+        return new Blob([u8], { type: mime });
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function applyFileToSlot(slot, file, forcedType = null) {
+      if (!file) return;
+      pendingMediaSelection = false;
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+
+      if (slot === "vin") {
+        currentVinFileBlob = file;
+        currentVinPreviewUrl = createSafeObjectUrl(file);
+        setVinPreview(currentVinPreviewUrl);
+      } else {
+        currentEvidenceFileBlob = file;
+        currentEvidencePreviewUrl = createSafeObjectUrl(file);
+        const isVideo = forcedType === "video" ||
+          (file.type && file.type.startsWith("video/")) ||
+          /\.(mp4|mov|webm|m4v|3gp|avi)$/i.test(file.name || "");
+        currentEvidenceFileType = isVideo ? "video" : "image";
+        setEvidencePreview(currentEvidencePreviewUrl, currentEvidenceFileType);
+      }
+    }
+
+    function armPowerAppsFallback(slot, mode) {
+      pendingMediaSelection = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            type: "REQUEST_MEDIA",
+            slot: slot,
+            mode: mode
+          }, "*");
+        } catch (_) {}
+      }
+
+      fallbackTimer = setTimeout(() => {
+        if (!pendingMediaSelection) return;
+        if (document.hasFocus()) {
+          pendingMediaSelection = false;
+          openLiveCameraModal(slot, mode === "gallery" ? "photo" : mode);
+        }
+      }, 900);
+    }
+
+    async function openLiveCameraModal(slot, mode = "photo") {
+      liveTargetSlot = slot;
+      const modal = document.getElementById("liveCameraModal");
+      const title = document.getElementById("liveCameraTitle");
+      const status = document.getElementById("liveCameraStatus");
+      const vid = document.getElementById("liveCameraStreamVideo");
+      const btnRecord = document.getElementById("btnStartRecord");
+      const btnStop = document.getElementById("btnStopRecord");
+
+      title.innerText = slot === "vin" ? "Cámara en Vivo - Foto VIN" : "Cámara en Vivo - Evidencia";
+      btnRecord.classList.toggle("hidden", slot === "vin");
+      btnStop.classList.add("hidden");
+      status.innerText = "Solicitando acceso a la cámara...";
+
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Cámara no soportada en este contenedor.");
+        }
+        const constraints = slot === "vin"
+          ? { video: { facingMode: { ideal: "environment" } }, audio: false }
+          : { video: { facingMode: { ideal: "environment" } }, audio: mode === "video" };
+
+        liveStream = await navigator.mediaDevices.getUserMedia(constraints);
+        vid.srcObject = liveStream;
+        status.innerText = slot === "vin"
+          ? "Enfoca la etiqueta/chasis VIN y toca Tomar Foto."
+          : "Toca Tomar Foto o Iniciar Video para grabar evidencia.";
+      } catch (err) {
+        status.innerText = "Cámara no disponible en este contenedor (" + (err.message || "permiso o Power Apps") + ").";
+      }
+    }
+
+    function closeLiveCameraModal() {
+      if (liveMediaRecorder && liveMediaRecorder.state !== "inactive") {
+        try { liveMediaRecorder.stop(); } catch (_) {}
+      }
+      liveMediaRecorder = null;
+      liveRecordedChunks = [];
+
+      if (liveStream) {
+        liveStream.getTracks().forEach(t => {
+          try { t.stop(); } catch (_) {}
+        });
+        liveStream = null;
+      }
+
+      const vid = document.getElementById("liveCameraStreamVideo");
+      if (vid) vid.srcObject = null;
+
+      const modal = document.getElementById("liveCameraModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function captureLivePhoto() {
+      const vid = document.getElementById("liveCameraStreamVideo");
+      if (!vid || !vid.videoWidth || !vid.videoHeight) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = vid.videoWidth;
+      canvas.height = vid.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const file = new File([blob], (liveTargetSlot === "vin" ? "vin_" : "evidencia_") + Date.now() + ".jpg", { type: "image/jpeg" });
+        applyFileToSlot(liveTargetSlot, file, "image");
+        closeLiveCameraModal();
+      }, "image/jpeg", 0.9);
+    }
+
+    function startLiveVideoRecording() {
+      if (!liveStream || typeof MediaRecorder === "undefined") return;
+      liveRecordedChunks = [];
+      try {
+        liveMediaRecorder = new MediaRecorder(liveStream);
+      } catch (_) {
+        return;
+      }
+      liveMediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) liveRecordedChunks.push(e.data);
+      };
+      liveMediaRecorder.onstop = () => {
+        const mime = (liveMediaRecorder && liveMediaRecorder.mimeType) || "video/webm";
+        const blob = new Blob(liveRecordedChunks, { type: mime });
+        const file = new File([blob], "evidencia_" + Date.now() + ".webm", { type: mime });
+        applyFileToSlot("evidence", file, "video");
+        closeLiveCameraModal();
+      };
+      liveMediaRecorder.start();
+      document.getElementById("btnStartRecord").classList.add("hidden");
+      document.getElementById("btnStopRecord").classList.remove("hidden");
+      document.getElementById("liveCameraStatus").innerText = "Grabando video... toca Detener y Usar Video al terminar.";
+    }
+
+    function stopLiveVideoRecording() {
+      if (liveMediaRecorder && liveMediaRecorder.state !== "inactive") {
+        liveMediaRecorder.stop();
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
+      setVinPreview("");
+      setEvidencePreview("");
+
       await initDB();
       const saved = await loadDataFromDB();
 
-      if (saved && saved.records) {
+      if (saved && Array.isArray(saved.records) && saved.records.length > 0) {
         records = saved.records;
-        if (saved.models && saved.models.length > 0) models = saved.models;
       } else {
         records = [
           {
@@ -339,60 +1448,93 @@
         await saveDataToDB();
       }
 
+      if (saved && Array.isArray(saved.models) && saved.models.length > 0) {
+        models = saved.models;
+      } else {
+        models = [...DEFAULT_MODELS];
+      }
+
+      if (window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onLoadAll === "function") {
+        try {
+          const cloudData = await window.CALIDAD_CLOUD_CONFIG.onLoadAll();
+          if (cloudData && Array.isArray(cloudData.records) && cloudData.records.length > 0) {
+            records = cloudData.records;
+            if (Array.isArray(cloudData.models) && cloudData.models.length > 0) {
+              models = cloudData.models;
+            }
+            await saveDataToDB();
+          }
+        } catch (err) {
+          console.error("Error al cargar datos de la nube:", err);
+        }
+      }
+
+      window.addEventListener("message", async (event) => {
+        if (!event.data) return;
+
+        if (event.data.type === "SYNC_RECORDS") {
+          if (Array.isArray(event.data.records) && event.data.records.length > 0) {
+            records = event.data.records;
+          }
+          if (Array.isArray(event.data.models) && event.data.models.length > 0) {
+            models = event.data.models;
+          }
+          await saveDataToDB();
+          populateModelDropdown();
+          renderChronologicalTree();
+          handleSearch();
+        } else if (event.data.type === "RECEIVE_MEDIA") {
+          const slot = event.data.slot === "evidence" ? "evidence" : "vin";
+          const mediaType = event.data.mediaType || null;
+          if (event.data.file instanceof Blob) {
+            applyFileToSlot(slot, event.data.file, mediaType);
+          } else if (typeof event.data.dataUrl === "string" && event.data.dataUrl.startsWith("data:")) {
+            const blob = dataUrlToBlob(event.data.dataUrl, event.data.mimeType || (mediaType === "video" ? "video/mp4" : "image/jpeg"));
+            if (blob) {
+              const file = new File([blob], event.data.fileName || ((slot === "vin" ? "vin_" : "evidencia_") + Date.now()), { type: blob.type });
+              applyFileToSlot(slot, file, mediaType);
+            }
+          }
+        }
+      });
+
       populateModelDropdown();
       renderChronologicalTree();
     });
 
     function handleVinFileSelect(event) {
-      const file = event.target.files[0];
-      if (file) {
-        currentVinFileBlob = file;
-        currentVinPreviewUrl = URL.createObjectURL(file);
-        document.getElementById("vinPreviewImg").src = currentVinPreviewUrl;
-        document.getElementById("vinPreviewContainer").classList.remove("hidden");
-      }
+      const input = event.target;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      applyFileToSlot("vin", file, "image");
     }
 
     function removeVinFile() {
       currentVinFileBlob = null;
       currentVinPreviewUrl = null;
-      document.getElementById("vinPreviewImg").src = "";
-      document.getElementById("vinPreviewContainer").classList.add("hidden");
+      setVinPreview("");
+      const cInput = document.getElementById("vinCameraInput");
+      const gInput = document.getElementById("vinGalleryInput");
+      if (cInput) cInput.value = "";
+      if (gInput) gInput.value = "";
     }
 
     function handleEvidenceFileSelect(event) {
-      const file = event.target.files[0];
+      const input = event.target;
+      const file = input && input.files && input.files[0];
       if (!file) return;
-
-      currentEvidenceFileBlob = file;
-      currentEvidencePreviewUrl = URL.createObjectURL(file);
-      const isVideo = file.type.startsWith("video/");
-      currentEvidenceFileType = isVideo ? "video" : "image";
-
-      const container = document.getElementById("evidencePreviewContainer");
-      const imgEl = document.getElementById("evidencePreviewImg");
-      const vidEl = document.getElementById("evidencePreviewVid");
-
-      container.classList.remove("hidden");
-
-      if (isVideo) {
-        imgEl.classList.add("hidden");
-        vidEl.classList.remove("hidden");
-        vidEl.src = currentEvidencePreviewUrl;
-      } else {
-        vidEl.classList.add("hidden");
-        imgEl.classList.remove("hidden");
-        imgEl.src = currentEvidencePreviewUrl;
-      }
+      applyFileToSlot("evidence", file);
     }
 
     function removeEvidenceFile() {
       currentEvidenceFileBlob = null;
       currentEvidencePreviewUrl = null;
       currentEvidenceFileType = "image";
-      document.getElementById("evidencePreviewImg").src = "";
-      document.getElementById("evidencePreviewVid").src = "";
-      document.getElementById("evidencePreviewContainer").classList.add("hidden");
+      setEvidencePreview("");
+      const cInput = document.getElementById("evCameraInput");
+      const gInput = document.getElementById("evGalleryInput");
+      if (cInput) cInput.value = "";
+      if (gInput) gInput.value = "";
     }
 
     document.getElementById("qualityForm").addEventListener("submit", async function(e) {
@@ -409,15 +1551,25 @@
       const aprobadoPor = document.getElementById("aprobadoPor").value.trim();
       const dictamen = document.getElementById("dictamen").value;
 
+      let actionType = "NEW_DEFECT";
+      let targetRecId = "";
+      let targetDefId = "";
+
       if (editVinId && editDefectId) {
-        let rec = records.find(r => r.id === editVinId);
+        actionType = "EDIT_DEFECT";
+        targetRecId = editVinId;
+        targetDefId = editDefectId;
+
+        const rec = records.find(r => r.id === editVinId);
         if (rec) {
           rec.linea = linea;
           rec.orden = orden;
           rec.vin = vin;
-          if (currentVinFileBlob) rec.vinMediaBlob = currentVinFileBlob;
+          if (currentVinFileBlob) {
+            rec.vinMediaBlob = currentVinFileBlob;
+          }
 
-          let def = rec.defectos.find(d => d.id === editDefectId);
+          const def = rec.defectos.find(d => d.id === editDefectId);
           if (def) {
             def.componente = componente;
             def.tipoDefecto = tipoDefecto;
@@ -430,10 +1582,12 @@
           }
         }
       } else {
-        let existingRec = records.find(r => r.vin === vin);
+        const existingRec = records.find(r => r.vin === vin);
+        const newDefectId = "DEF-" + Date.now();
+        targetDefId = newDefectId;
 
         const newDefect = {
-          id: "DEF-" + Date.now(),
+          id: newDefectId,
           componente,
           tipoDefecto,
           aprobadoPor,
@@ -443,18 +1597,27 @@
         };
 
         if (existingRec) {
-          if (currentVinFileBlob) existingRec.vinMediaBlob = currentVinFileBlob;
+          targetRecId = existingRec.id;
+          existingRec.orden = orden || existingRec.orden;
+          existingRec.linea = linea || existingRec.linea;
+          if (currentVinFileBlob) {
+            existingRec.vinMediaBlob = currentVinFileBlob;
+          }
           existingRec.defectos.unshift(newDefect);
         } else {
           const now = new Date();
-          const timestamp = now.getFullYear() + "-" +
-                            String(now.getMonth() + 1).padStart(2, '0') + "-" +
-                            String(now.getDate()).padStart(2, '0') + " " +
-                            String(now.getHours()).padStart(2, '0') + ":" +
-                            String(now.getMinutes()).padStart(2, '0');
+          const timestamp =
+            now.getFullYear() + "-" +
+            String(now.getMonth() + 1).padStart(2, "0") + "-" +
+            String(now.getDate()).padStart(2, "0") + " " +
+            String(now.getHours()).padStart(2, "0") + ":" +
+            String(now.getMinutes()).padStart(2, "0");
+
+          const newRecId = "REC-" + Date.now();
+          targetRecId = newRecId;
 
           records.unshift({
-            id: "REC-" + Date.now(),
+            id: newRecId,
             vin,
             orden,
             linea,
@@ -465,12 +1628,21 @@
         }
       }
 
-      await saveDataToDB();
+      await persistState({
+        action: actionType,
+        recId: targetRecId,
+        defId: targetDefId,
+        vin,
+        orden,
+        linea
+      });
+
       document.getElementById("componente").value = "";
       document.getElementById("tipoDefecto").value = "";
       removeEvidenceFile();
       resetForm();
       renderChronologicalTree();
+      handleSearch();
     });
 
     function openMediaModalByIds(recId, defId = null) {
@@ -491,19 +1663,21 @@
         type = "image";
       }
 
+      if (!url) return;
+
       const modal = document.getElementById("mediaModal");
       const content = document.getElementById("modalMediaContent");
-      
-      if (type === 'video') {
+
+      if (type === "video") {
         content.innerHTML = `
-          <video controls autoplay playsinline class="max-h-[80vh] w-full rounded-lg bg-black">
-            <source src="${url}">
+          <video controls autoplay playsinline preload="metadata" class="max-h-[80vh] w-full rounded-lg bg-black">
+            <source src="${escapeAttr(url)}">
             Tu navegador no soporta la reproducción de video.
           </video>`;
       } else {
-        content.innerHTML = `<img src="${url}" class="max-h-[80vh] w-auto object-contain rounded-lg">`;
+        content.innerHTML = `<img src="${escapeAttr(url)}" alt="Evidencia" class="max-h-[80vh] w-auto object-contain rounded-lg">`;
       }
-      
+
       modal.classList.remove("hidden");
       modal.classList.add("flex");
     }
@@ -517,70 +1691,76 @@
     }
 
     function buildVinCardHtml(rec) {
-      const defectosHtml = rec.defectos.map(def => {
+      const defectosHtml = (rec.defectos || []).map(def => {
         const mediaUrl = getMediaUrl(def.mediaBlob);
+        const isAccepted = def.dictamen === "Aceptado";
         return `
-        <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm space-y-2">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-3">
-              ${mediaUrl ? `
-                <div class="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer flex-shrink-0 group" onclick="openMediaModalByIds('${rec.id}', '${def.id}')">
-                  ${def.mediaType === 'video' ? `
-                    <video src="${mediaUrl}#t=0.1" preload="metadata" class="w-full h-full object-cover opacity-80" muted></video>
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <i class="fa-solid fa-play text-white text-xs bg-red-600 p-1.5 rounded-full"></i>
-                    </div>
-                  ` : `
-                    <img src="${mediaUrl}" class="w-full h-full object-cover">
-                  `}
+          <div class="defect-item">
+            <div class="defect-row">
+              <div class="defect-main">
+                ${mediaUrl ? `
+                  <div class="thumb-box" onclick="openMediaModalByIds('${escapeAttr(rec.id)}', '${escapeAttr(def.id)}')">
+                    ${def.mediaType === "video" ? `
+                      <video src="${escapeAttr(mediaUrl)}#t=0.1" preload="metadata" playsinline muted class="thumb-media"></video>
+                      <div class="play-overlay">
+                        <span class="play-circle"><i class="fa-solid fa-play"></i></span>
+                      </div>
+                    ` : `
+                      <img src="${escapeAttr(mediaUrl)}" alt="Evidencia defecto" class="thumb-media">
+                    `}
+                  </div>
+                ` : ""}
+                <div class="min-w-0">
+                  <span class="dictamen-pill ${isAccepted ? "dictamen-ok" : "dictamen-no"}">
+                    ${escapeAttr(def.dictamen)}
+                  </span>
+                  <h4 class="defect-comp">${escapeAttr(def.componente)}</h4>
+                  <p class="defect-desc">${escapeAttr(def.tipoDefecto)}</p>
+                  <p class="defect-approver"><i class="fa-solid fa-user-check"></i> Aprueba: <strong>${escapeAttr(def.aprobadoPor)}</strong></p>
                 </div>
-              ` : ''}
-              <div>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${def.dictamen === 'Aceptado' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
-                  ${def.dictamen}
-                </span>
-                <h4 class="font-bold text-xs text-slate-800 mt-1">${def.componente}</h4>
-                <p class="text-xs text-slate-600 font-medium">${def.tipoDefecto}</p>
-                <p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-solid fa-user-check"></i> Aprueba: <strong>${def.aprobadoPor}</strong></p>
+              </div>
+              <div class="defect-actions">
+                <button type="button" onclick="editDefect('${escapeAttr(rec.id)}', '${escapeAttr(def.id)}')" class="btn-icon-action" title="Editar">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button type="button" onclick="deleteDefect('${escapeAttr(rec.id)}', '${escapeAttr(def.id)}')" class="btn-icon-action btn-icon-delete" title="Eliminar">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
               </div>
             </div>
-            <div class="flex gap-1">
-              <button onclick="editDefect('${rec.id}', '${def.id}')" class="text-slate-400 hover:text-blue-600 p-1 rounded-md text-xs" title="Editar"><i class="fa-solid fa-pen"></i></button>
-              <button onclick="deleteDefect('${rec.id}', '${def.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded-md text-xs" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-            </div>
           </div>
-        </div>
-      `}).join("");
+        `;
+      }).join("");
 
       const hasVinMedia = !!rec.vinMediaBlob;
 
       return `
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
-          <div class="bg-slate-900 text-white px-3 py-2 flex justify-between items-center">
-            <div>
-              <span class="bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded mr-2">${rec.linea}</span>
-              <span class="font-mono text-xs font-bold tracking-wider">${rec.vin}</span>
+        <div class="vin-card">
+          <div class="vin-card-head">
+            <div class="vin-card-meta">
+              <span class="vin-model-pill">${escapeAttr(rec.linea)}</span>
+              <span class="vin-code">${escapeAttr(rec.vin)}</span>
             </div>
-            <div class="flex items-center gap-3">
-              <span class="text-[11px] text-slate-400 font-mono">Ord: ${rec.orden}</span>
-              <button onclick="quickAddDefectToVin('${rec.vin}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1" title="Agregar otro defecto a este VIN">
+            <div class="vin-card-meta">
+              <span class="vin-order-text">Ord: ${escapeAttr(rec.orden)}</span>
+              <button type="button" onclick="quickAddDefectToVin('${escapeAttr(rec.vin)}')" class="btn-add-defect" title="Agregar otro defecto a este VIN">
                 <i class="fa-solid fa-plus"></i> Otro Defecto
               </button>
             </div>
           </div>
-          
+
           ${hasVinMedia ? `
-            <div class="bg-blue-50/50 px-3 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
-              <span class="text-slate-600 text-[11px] font-medium flex items-center gap-1">
+            <div class="vin-photo-bar">
+              <span class="text-slate-600 font-semibold flex items-center gap-1">
                 <i class="fa-solid fa-id-badge text-blue-600"></i> Registro Foto VIN:
               </span>
-              <button onclick="openMediaModalByIds('${rec.id}')" class="text-blue-600 hover:underline text-[11px] font-bold flex items-center gap-1">
+              <button type="button" onclick="openMediaModalByIds('${escapeAttr(rec.id)}')" class="btn-view-vin">
                 <i class="fa-solid fa-image"></i> Ver VIN
               </button>
             </div>
-          ` : ''}
+          ` : ""}
 
-          <div class="p-3 space-y-2 bg-slate-50/50">
+          <div class="vin-card-body">
             ${defectosHtml}
           </div>
         </div>
@@ -589,18 +1769,17 @@
 
     function quickAddDefectToVin(vinVal) {
       const found = records.find(r => r.vin === vinVal);
-      if (found) {
-        document.getElementById("linea").value = found.linea;
-        document.getElementById("orden").value = found.orden;
-        document.getElementById("vin").value = found.vin;
-        if (found.vinMediaBlob) {
-          currentVinFileBlob = found.vinMediaBlob;
-          document.getElementById("vinPreviewImg").src = getMediaUrl(found.vinMediaBlob);
-          document.getElementById("vinPreviewContainer").classList.remove("hidden");
-        }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        document.getElementById("componente").focus();
+      if (!found) return;
+      document.getElementById("linea").value = found.linea;
+      document.getElementById("orden").value = found.orden;
+      document.getElementById("vin").value = found.vin;
+      if (found.vinMediaBlob) {
+        currentVinFileBlob = found.vinMediaBlob;
+        currentVinPreviewUrl = getMediaUrl(found.vinMediaBlob);
+        setVinPreview(currentVinPreviewUrl);
       }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.getElementById("componente").focus();
     }
 
     function editDefect(recId, defId) {
@@ -622,36 +1801,22 @@
 
       if (rec.vinMediaBlob) {
         currentVinFileBlob = rec.vinMediaBlob;
-        document.getElementById("vinPreviewImg").src = getMediaUrl(rec.vinMediaBlob);
-        document.getElementById("vinPreviewContainer").classList.remove("hidden");
+        currentVinPreviewUrl = getMediaUrl(rec.vinMediaBlob);
+        setVinPreview(currentVinPreviewUrl);
       }
 
       if (def.mediaBlob) {
         currentEvidenceFileBlob = def.mediaBlob;
         currentEvidenceFileType = def.mediaType || "image";
         const previewUrl = getMediaUrl(def.mediaBlob);
-        
-        const container = document.getElementById("evidencePreviewContainer");
-        const imgEl = document.getElementById("evidencePreviewImg");
-        const vidEl = document.getElementById("evidencePreviewVid");
-        container.classList.remove("hidden");
-
-        if (def.mediaType === "video") {
-          imgEl.classList.add("hidden");
-          vidEl.classList.remove("hidden");
-          vidEl.src = previewUrl;
-        } else {
-          vidEl.classList.add("hidden");
-          imgEl.classList.remove("hidden");
-          imgEl.src = previewUrl;
-        }
+        setEvidencePreview(previewUrl, currentEvidenceFileType);
       }
 
       document.getElementById("formTitle").innerText = "Editar Novedad";
-      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-rotate"></i> Actualizar Novedad`;
+      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-rotate"></i> <span>Actualizar Novedad</span>`;
       document.getElementById("cancelEditBtn").classList.remove("hidden");
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     async function deleteDefect(recId, defId) {
@@ -664,8 +1829,10 @@
           records = records.filter(r => r.id !== recId);
         }
       }
-      await saveDataToDB();
+
+      await persistState({ action: "DELETE_DEFECT", recId, defId });
       renderChronologicalTree();
+      handleSearch();
     }
 
     function resetForm() {
@@ -673,15 +1840,22 @@
       document.getElementById("editVinId").value = "";
       document.getElementById("editDefectId").value = "";
       document.getElementById("formTitle").innerText = "Nuevo Registro de Calidad";
-      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-save"></i> Guardar Novedad y Evidencias`;
+      document.getElementById("submitBtn").innerHTML = `<i class="fa-solid fa-save"></i> <span>Guardar Novedad y Evidencias</span>`;
       document.getElementById("cancelEditBtn").classList.add("hidden");
       removeVinFile();
       removeEvidenceFile();
     }
 
     function populateModelDropdown() {
+      const list = Array.isArray(models) && models.length > 0 ? models : DEFAULT_MODELS;
       const select = document.getElementById("linea");
-      select.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+      const currentVal = select.value;
+      select.innerHTML = list.map(m => `<option value="${escapeAttr(m)}">${escapeAttr(m)}</option>`).join("");
+      if (currentVal && list.includes(currentVal)) {
+        select.value = currentVal;
+      } else if (list.length > 0) {
+        select.value = list[0];
+      }
     }
 
     function openModelManagerModal() {
@@ -698,11 +1872,11 @@
     function renderModelList() {
       const container = document.getElementById("modelListContainer");
       container.innerHTML = models.map((m, index) => `
-        <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-          <span class="font-semibold text-sm text-slate-800">${m}</span>
-          <div class="flex gap-1">
-            <button onclick="editModel(${index})" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-pen"></i></button>
-            <button onclick="deleteModel(${index})" class="text-red-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-trash"></i></button>
+        <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 gap-2">
+          <span class="font-semibold text-sm text-slate-800">${escapeAttr(m)}</span>
+          <div class="defect-actions">
+            <button type="button" onclick="editModel(${index})" class="btn-icon-action" title="Editar modelo"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" onclick="deleteModel(${index})" class="btn-icon-action btn-icon-delete" title="Eliminar modelo"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       `).join("");
@@ -711,10 +1885,10 @@
     async function addNewModel() {
       const input = document.getElementById("newModelInput");
       const val = input.value.trim().toUpperCase();
-      if(val && !models.includes(val)) {
+      if (val && !models.includes(val)) {
         models.push(val);
         input.value = "";
-        await saveDataToDB();
+        await persistState({ action: "ADD_MODEL", model: val });
         populateModelDropdown();
         renderModelList();
       }
@@ -723,30 +1897,39 @@
     async function editModel(index) {
       const current = models[index];
       const updated = prompt("Editar nombre del modelo:", current);
-      if(updated && updated.trim() !== "") {
-        models[index] = updated.trim().toUpperCase();
-        await saveDataToDB();
+      if (updated && updated.trim() !== "") {
+        const clean = updated.trim().toUpperCase();
+        records.forEach(r => {
+          if (r.linea === current) r.linea = clean;
+        });
+        models[index] = clean;
+        await persistState({ action: "EDIT_MODEL", oldModel: current, newModel: clean });
         populateModelDropdown();
         renderModelList();
         renderChronologicalTree();
+        handleSearch();
       }
     }
 
     async function deleteModel(index) {
-      if(confirm(`¿Deseas eliminar el modelo "${models[index]}"?`)) {
+      if (confirm(`¿Deseas eliminar el modelo "${models[index]}"?`)) {
+        const removed = models[index];
         models.splice(index, 1);
-        await saveDataToDB();
+        await persistState({ action: "DELETE_MODEL", model: removed });
         populateModelDropdown();
         renderModelList();
       }
     }
 
     function renderChronologicalTree() {
+      revokeRenderedUrls();
       const container = document.getElementById("chronologicalTree");
       container.innerHTML = "";
-      
+
       let totalDefects = 0;
-      records.forEach(r => totalDefects += r.defectos.length);
+      records.forEach(r => {
+        totalDefects += (r.defectos ? r.defectos.length : 0);
+      });
       document.getElementById("recordCountBadge").innerText = `${records.length} VINs (${totalDefects} Novedades)`;
 
       if (records.length === 0) {
@@ -756,7 +1939,7 @@
 
       const tree = {};
       records.forEach(rec => {
-        const [datePart] = rec.fecha.split(" ");
+        const [datePart] = (rec.fecha || "2026-01-01 00:00").split(" ");
         const [year, month, day] = datePart.split("-");
 
         if (!tree[year]) tree[year] = {};
@@ -771,22 +1954,22 @@
       Object.keys(tree).sort().reverse().forEach(year => {
         const yearBlock = document.createElement("details");
         yearBlock.open = true;
-        yearBlock.className = "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden";
+        yearBlock.className = "tree-year";
 
         let monthsHtml = "";
         Object.keys(tree[year]).sort().reverse().forEach(month => {
-          const monthName = monthNames[parseInt(month) - 1] || month;
+          const monthName = monthNames[parseInt(month, 10) - 1] || month;
           let daysHtml = "";
-          
+
           Object.keys(tree[year][month]).sort().reverse().forEach(day => {
             const dayRecords = tree[year][month][day];
             const recordsCardsHtml = dayRecords.map(rec => buildVinCardHtml(rec)).join("");
 
             daysHtml += `
-              <details open class="ml-2 my-2 border-l-2 border-blue-500 pl-3">
-                <summary class="font-semibold text-xs text-slate-700 cursor-pointer py-1 flex items-center justify-between">
-                  <span><i class="fa-solid fa-calendar-day text-blue-500 mr-1.5"></i> Día ${day}</span>
-                  <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">${dayRecords.length} VINs</span>
+              <details open class="tree-day">
+                <summary class="tree-day-summary">
+                  <span><i class="fa-solid fa-calendar-day text-blue-500 mr-1.5"></i> Día ${escapeAttr(day)}</span>
+                  <span class="day-badge">${dayRecords.length} VINs</span>
                 </summary>
                 <div class="mt-2 space-y-3">
                   ${recordsCardsHtml}
@@ -796,9 +1979,9 @@
           });
 
           monthsHtml += `
-            <details open class="ml-2 my-2 border-l-2 border-slate-300 pl-3">
-              <summary class="font-bold text-xs text-slate-800 cursor-pointer py-1">
-                <i class="fa-solid fa-folder-closed text-amber-500 mr-1.5"></i> ${monthName}
+            <details open class="tree-month">
+              <summary class="tree-month-summary">
+                <i class="fa-solid fa-folder-closed text-amber-500 mr-1.5"></i> ${escapeAttr(monthName)}
               </summary>
               <div>${daysHtml}</div>
             </details>
@@ -806,10 +1989,10 @@
         });
 
         yearBlock.innerHTML = `
-          <summary class="bg-slate-200/70 px-4 py-2.5 font-black text-sm text-slate-800 cursor-pointer flex justify-between items-center">
-            <span><i class="fa-solid fa-calendar text-slate-600 mr-2"></i> Año ${year}</span>
+          <summary class="tree-year-summary">
+            <span><i class="fa-solid fa-calendar text-slate-600 mr-2"></i> Año ${escapeAttr(year)}</span>
           </summary>
-          <div class="p-3">${monthsHtml}</div>
+          <div class="tree-year-body">${monthsHtml}</div>
         `;
 
         container.appendChild(yearBlock);
@@ -830,13 +2013,16 @@
       tree.classList.add("hidden");
       resultsContainer.classList.remove("hidden");
 
-      const filtered = records.filter(r => r.vin.includes(q) || r.orden.includes(q));
+      const filtered = records.filter(r =>
+        (r.vin && r.vin.toUpperCase().includes(q)) ||
+        (r.orden && r.orden.toUpperCase().includes(q))
+      );
 
       if (filtered.length === 0) {
         resultsContainer.innerHTML = `
           <div class="bg-slate-50 p-6 rounded-xl text-center text-slate-400 border border-slate-200">
             <i class="fa-solid fa-magnifying-glass text-2xl mb-1"></i>
-            <p class="text-xs">No se encontró ningún VIN que coincida con "${q}"</p>
+            <p class="text-xs">No se encontró ningún VIN que coincida con "${escapeAttr(q)}"</p>
           </div>
         `;
       } else {
