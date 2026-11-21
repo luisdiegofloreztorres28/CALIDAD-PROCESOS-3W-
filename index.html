@@ -107,6 +107,19 @@
       color: #94a3b8;
     }
 
+    .sync-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background-color: #1e293b;
+      color: #cbd5e1;
+      margin-top: 4px;
+    }
+
     .btn-models {
       background-color: #1e293b;
       color: #ffffff;
@@ -776,6 +789,9 @@
         <div>
           <h1 class="brand-title">Calidad Procesos 3W</h1>
           <p class="brand-sub">Inspección de Motocarros &amp; Tricargos (Auteco)</p>
+          <span id="syncStatusBadge" class="sync-pill">
+            <i class="fa-solid fa-circle-check"></i> Listo en Power Apps
+          </span>
         </div>
       </div>
       <button type="button" onclick="openModelManagerModal()" class="btn-models">
@@ -1000,9 +1016,21 @@
   </div>
 
   <script>
+    // =========================================================================
+    // PEGA AQUI TUS DOS URLS DE POWER AUTOMATE (SHAREPOINT DE AUTECO)
+    // =========================================================================
+    const POWER_AUTOMATE_LOAD_URL = "";
+    const POWER_AUTOMATE_SAVE_URL = "";
+
     const DB_NAME = "CalidadProcesos3W_DB";
     const DB_VERSION = 1;
+    const CHANNEL_NAME = "CalidadProcesos3W_PowerAppsChannel";
+
     let db = null;
+    let liveChannel = null;
+    let isSavingRemote = false;
+    let lastUpdatedAt = "";
+    let pollInterval = null;
 
     const DEFAULT_MODELS = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
     let models = [...DEFAULT_MODELS];
@@ -1015,6 +1043,14 @@
     let currentEvidenceFileBlob = null;
     let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
+
+    function setSyncBadge(iconClass, text, bg, fg) {
+      const badge = document.getElementById("syncStatusBadge");
+      if (!badge) return;
+      badge.style.backgroundColor = bg;
+      badge.style.color = fg;
+      badge.innerHTML = `<i class="${iconClass}"></i> ${escapeAttr(text)}`;
+    }
 
     function createSafeObjectUrl(blob) {
       const url = URL.createObjectURL(blob);
@@ -1084,14 +1120,116 @@
       });
     }
 
-    function broadcastState(actionEvent = null) {
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function serializeRecordsForTransport(rawRecords) {
+      const out = [];
+      for (const rec of (rawRecords || [])) {
+        let vinMedia = rec.vinMediaBlob || null;
+        if (vinMedia instanceof Blob || vinMedia instanceof File) {
+          vinMedia = await fileToBase64(vinMedia);
+        }
+        const defs = [];
+        for (const def of (rec.defectos || [])) {
+          let evMedia = def.mediaBlob || null;
+          if (evMedia instanceof Blob || evMedia instanceof File) {
+            evMedia = await fileToBase64(evMedia);
+          }
+          defs.push({
+            id: def.id,
+            componente: def.componente,
+            tipoDefecto: def.tipoDefecto,
+            aprobadoPor: def.aprobadoPor,
+            dictamen: def.dictamen,
+            mediaType: def.mediaType || "image",
+            mediaBlob: evMedia
+          });
+        }
+        out.push({
+          id: rec.id,
+          vin: rec.vin,
+          orden: rec.orden,
+          linea: rec.linea,
+          fecha: rec.fecha,
+          vinMediaBlob: vinMedia,
+          defectos: defs
+        });
+      }
+      return out;
+    }
+
+    function parseFlowResponse(rawData) {
+      if (!rawData) return null;
+      let parsed = rawData;
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch (_) {
+          return null;
+        }
+      }
+      if (parsed && typeof parsed.EstadoJson === "string") {
+        try {
+          const inner = JSON.parse(parsed.EstadoJson);
+          return {
+            records: Array.isArray(inner.records) ? inner.records : [],
+            models: Array.isArray(inner.models) ? inner.models : [],
+            updated_at: parsed.updated_at || parsed.Modified || inner.updated_at || ""
+          };
+        } catch (_) {}
+      }
+      if (parsed && Array.isArray(parsed.records)) {
+        return {
+          records: parsed.records,
+          models: Array.isArray(parsed.models) ? parsed.models : [],
+          updated_at: parsed.updated_at || ""
+        };
+      }
+      return null;
+    }
+
+    async function loadFromPowerAutomate() {
+      if (!POWER_AUTOMATE_LOAD_URL) return null;
+      const resp = await fetch(POWER_AUTOMATE_LOAD_URL, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!resp.ok) return null;
+      const text = await resp.text();
+      return parseFlowResponse(text);
+    }
+
+    async function saveToPowerAutomate(payload) {
+      if (!POWER_AUTOMATE_SAVE_URL) return null;
+      const resp = await fetch(POWER_AUTOMATE_SAVE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) return null;
+      const text = await resp.text();
+      return parseFlowResponse(text);
+    }
+
+    function broadcastState(actionEvent = null, serializedRecords = null) {
       const payload = {
         type: "SYNC_RECORDS",
         action: actionEvent ? actionEvent.action : "SYNC",
         event: actionEvent,
-        records,
-        models
+        records: serializedRecords || records,
+        models: [...models]
       };
+
+      try {
+        if (liveChannel) liveChannel.postMessage(payload);
+      } catch (_) {}
 
       if (window.parent && window.parent !== window) {
         try {
@@ -1109,27 +1247,51 @@
     async function persistState(actionEvent = null) {
       await saveDataToDB();
 
-      if (window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onSaveAll === "function") {
+      const hasFlowSave = Boolean(POWER_AUTOMATE_SAVE_URL);
+      const hasCustomSave = Boolean(window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onSaveAll === "function");
+
+      if (hasFlowSave || hasCustomSave) {
+        isSavingRemote = true;
+        setSyncBadge("fa-solid fa-rotate fa-spin", "Sincronizando SharePoint...", "#1e3a8a", "#bfdbfe");
         try {
-          const cloudResp = await window.CALIDAD_CLOUD_CONFIG.onSaveAll({
+          const transportRecords = await serializeRecordsForTransport(records);
+          const payload = {
             action: actionEvent ? actionEvent.action : "SYNC",
             event: actionEvent,
-            records,
-            models
-          });
-          if (cloudResp && Array.isArray(cloudResp.records)) {
-            records = cloudResp.records;
-            if (Array.isArray(cloudResp.models) && cloudResp.models.length > 0) {
-              models = cloudResp.models;
+            records: transportRecords,
+            models: [...models],
+            updated_at: new Date().toISOString()
+          };
+
+          let remoteResp = null;
+          if (hasFlowSave) {
+            remoteResp = await saveToPowerAutomate(payload);
+          } else if (hasCustomSave) {
+            remoteResp = await window.CALIDAD_CLOUD_CONFIG.onSaveAll(payload);
+          }
+
+          if (remoteResp && Array.isArray(remoteResp.records)) {
+            records = remoteResp.records;
+            if (Array.isArray(remoteResp.models) && remoteResp.models.length > 0) {
+              models = remoteResp.models;
             }
+            if (remoteResp.updated_at) lastUpdatedAt = remoteResp.updated_at;
             await saveDataToDB();
             populateModelDropdown();
             renderChronologicalTree();
             handleSearch();
           }
+
+          setSyncBadge("fa-solid fa-bolt", "SharePoint en vivo", "#064e3b", "#a7f3d0");
+          broadcastState(actionEvent, transportRecords);
         } catch (err) {
-          console.error("Error al sincronizar con la nube:", err);
+          console.error("Error al sincronizar con SharePoint:", err);
+          setSyncBadge("fa-solid fa-circle-check", "Guardado local", "#334155", "#e2e8f0");
+          broadcastState(actionEvent);
+        } finally {
+          setTimeout(() => { isSavingRemote = false; }, 350);
         }
+        return;
       }
 
       broadcastState(actionEvent);
@@ -1214,9 +1376,65 @@
       }
     }
 
+    async function applyIncomingState(data) {
+      if (!data || isSavingRemote) return;
+      if (data.updated_at && data.updated_at === lastUpdatedAt) return;
+      if (data.updated_at) lastUpdatedAt = data.updated_at;
+
+      if (Array.isArray(data.records)) {
+        records = data.records;
+      }
+      if (Array.isArray(data.models) && data.models.length > 0) {
+        models = data.models;
+      }
+
+      await saveDataToDB();
+      populateModelDropdown();
+      renderChronologicalTree();
+      handleSearch();
+    }
+
+    function startAutoRefreshLoop() {
+      const hasFlowLoad = Boolean(POWER_AUTOMATE_LOAD_URL);
+      const hasCustomLoad = Boolean(window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onLoadAll === "function");
+      if (!hasFlowLoad && !hasCustomLoad) return;
+
+      setSyncBadge("fa-solid fa-bolt", "SharePoint en vivo", "#064e3b", "#a7f3d0");
+
+      const checkUpdates = async () => {
+        if (isSavingRemote) return;
+        try {
+          const remote = hasFlowLoad
+            ? await loadFromPowerAutomate()
+            : await window.CALIDAD_CLOUD_CONFIG.onLoadAll();
+          if (remote && Array.isArray(remote.records)) {
+            await applyIncomingState(remote);
+          }
+        } catch (_) {}
+      };
+
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(checkUpdates, 4000);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) checkUpdates();
+      });
+      window.addEventListener("focus", checkUpdates);
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
       setVinPreview("");
       setEvidencePreview("");
+
+      if ("BroadcastChannel" in window) {
+        try {
+          liveChannel = new BroadcastChannel(CHANNEL_NAME);
+          liveChannel.onmessage = async (ev) => {
+            if (ev.data && ev.data.type === "SYNC_RECORDS") {
+              await applyIncomingState(ev.data);
+            }
+          };
+        } catch (_) {}
+      }
 
       await initDB();
       const saved = await loadDataFromDB();
@@ -1254,35 +1472,25 @@
         models = [...DEFAULT_MODELS];
       }
 
-      if (window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onLoadAll === "function") {
-        try {
-          const cloudData = await window.CALIDAD_CLOUD_CONFIG.onLoadAll();
-          if (cloudData && Array.isArray(cloudData.records) && cloudData.records.length > 0) {
-            records = cloudData.records;
-            if (Array.isArray(cloudData.models) && cloudData.models.length > 0) {
-              models = cloudData.models;
-            }
-            await saveDataToDB();
-          }
-        } catch (err) {
-          console.error("Error al cargar datos de la nube:", err);
+      try {
+        const remoteInit = POWER_AUTOMATE_LOAD_URL
+          ? await loadFromPowerAutomate()
+          : (window.CALIDAD_CLOUD_CONFIG && typeof window.CALIDAD_CLOUD_CONFIG.onLoadAll === "function"
+              ? await window.CALIDAD_CLOUD_CONFIG.onLoadAll()
+              : null);
+        if (remoteInit && Array.isArray(remoteInit.records)) {
+          if (remoteInit.updated_at) lastUpdatedAt = remoteInit.updated_at;
+          if (remoteInit.records.length > 0) records = remoteInit.records;
+          if (Array.isArray(remoteInit.models) && remoteInit.models.length > 0) models = remoteInit.models;
+          await saveDataToDB();
         }
-      }
+      } catch (_) {}
 
       window.addEventListener("message", async (event) => {
         if (!event.data) return;
 
         if (event.data.type === "SYNC_RECORDS") {
-          if (Array.isArray(event.data.records) && event.data.records.length > 0) {
-            records = event.data.records;
-          }
-          if (Array.isArray(event.data.models) && event.data.models.length > 0) {
-            models = event.data.models;
-          }
-          await saveDataToDB();
-          populateModelDropdown();
-          renderChronologicalTree();
-          handleSearch();
+          await applyIncomingState(event.data);
         } else if (event.data.type === "REQUEST_SYNC_STATE") {
           broadcastState({ action: "SYNC_REQUEST_RESPONSE" });
         }
@@ -1296,6 +1504,7 @@
 
       populateModelDropdown();
       renderChronologicalTree();
+      startAutoRefreshLoop();
     });
 
     function handleVinFileSelect(event) {
