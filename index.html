@@ -317,35 +317,9 @@
       padding: 12px 8px;
     }
 
-    .fallback-bar {
-      margin-top: 8px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .fallback-chip {
-      background-color: #ffffff;
-      border: 1px solid #cbd5e1;
-      color: #1e293b;
-      border-radius: 8px;
-      padding: 5px 9px;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .fallback-chip:hover {
-      background-color: #f1f5f9;
-    }
-
     .preview-box-vin {
       position: relative;
-      height: 120px;
+      height: 100px;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid #93c5fd;
@@ -358,7 +332,7 @@
 
     .preview-box-ev {
       position: relative;
-      height: 160px;
+      height: 112px;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid #cbd5e1;
@@ -369,9 +343,20 @@
       justify-content: center;
     }
 
+    @media (min-width: 768px) {
+      .preview-box-vin {
+        height: 120px;
+      }
+      .preview-box-ev {
+        height: 160px;
+      }
+    }
+
     .preview-media {
       width: 100%;
       height: 100%;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
     }
 
@@ -849,25 +834,20 @@
             <i class="fa-solid fa-id-card text-blue-600 mr-1"></i> Casilla 1: Foto de la Etiqueta / Chasis VIN
           </span>
           <div class="pick-grid">
-            <label for="vinCameraInput" class="pick-btn pick-btn-blue" onpointerdown="armPowerAppsFallback('vin', 'camera')">
+            <label for="vinCameraInput" class="pick-btn pick-btn-blue">
               <span class="pick-btn-content">
                 <i class="fa-solid fa-camera text-blue-600 text-lg"></i>
                 <span>Tomar Foto VIN</span>
               </span>
               <input id="vinCameraInput" type="file" accept="image/*" capture="environment" class="native-file-overlay" onchange="handleVinFileSelect(event)">
             </label>
-            <label for="vinGalleryInput" class="pick-btn pick-btn-blue" onpointerdown="armPowerAppsFallback('vin', 'gallery')">
+            <label for="vinGalleryInput" class="pick-btn pick-btn-blue">
               <span class="pick-btn-content">
                 <i class="fa-solid fa-image text-blue-600 text-lg"></i>
                 <span>Galería VIN</span>
               </span>
               <input id="vinGalleryInput" type="file" accept="image/*" class="native-file-overlay" onchange="handleVinFileSelect(event)">
             </label>
-          </div>
-          <div class="fallback-bar">
-            <button type="button" onclick="openLiveCameraModal('vin', 'photo')" class="fallback-chip">
-              <i class="fa-solid fa-video text-blue-600"></i> Cámara en vivo VIN
-            </button>
           </div>
 
           <div id="vinPreviewContainer" class="hidden preview-box-vin">
@@ -912,7 +892,7 @@
           <div>
             <span class="field-label">Evidencia de Novedad (Imagen o Video)</span>
             <div class="pick-grid">
-              <label for="evCameraInput" class="pick-btn pick-btn-dashed" onpointerdown="armPowerAppsFallback('evidence', 'camera')">
+              <label for="evCameraInput" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
                   <i class="fa-solid fa-camera text-xl text-blue-600"></i>
                   <span>Tomar Foto/Video</span>
@@ -920,21 +900,13 @@
                 <input id="evCameraInput" type="file" accept="image/*,video/*" class="native-file-overlay" onchange="handleEvidenceFileSelect(event)">
               </label>
 
-              <label for="evGalleryInput" class="pick-btn pick-btn-dashed" onpointerdown="armPowerAppsFallback('evidence', 'gallery')">
+              <label for="evGalleryInput" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
                   <i class="fa-solid fa-folder-open text-xl text-slate-500"></i>
                   <span>Galería / Archivos</span>
                 </span>
                 <input id="evGalleryInput" type="file" accept="image/*,video/*" class="native-file-overlay" onchange="handleEvidenceFileSelect(event)">
               </label>
-            </div>
-            <div class="fallback-bar">
-              <button type="button" onclick="openLiveCameraModal('evidence', 'photo')" class="fallback-chip">
-                <i class="fa-solid fa-camera text-blue-600"></i> Foto en vivo
-              </button>
-              <button type="button" onclick="openLiveCameraModal('evidence', 'video')" class="fallback-chip">
-                <i class="fa-solid fa-video text-red-600"></i> Grabar video en vivo
-              </button>
             </div>
 
             <div id="evidencePreviewContainer" class="hidden preview-box-ev">
@@ -985,33 +957,6 @@
 
     </section>
   </main>
-
-  <!-- MODAL: Cámara en Vivo (Respaldo si el visor/Power Apps bloquea input file) -->
-  <div id="liveCameraModal" class="modal-backdrop hidden">
-    <div class="modal-card-media p-4 text-white">
-      <div class="flex items-center justify-between mb-3">
-        <h3 id="liveCameraTitle" class="text-sm font-bold m-0">Cámara en Vivo</h3>
-        <button type="button" onclick="closeLiveCameraModal()" class="btn-remove-media static" style="width:30px;height:30px;background-color:#334155;" title="Cerrar cámara">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="bg-black rounded-xl overflow-hidden flex items-center justify-center max-h-[60vh]">
-        <video id="liveCameraStreamVideo" autoplay playsinline muted class="w-full max-h-[60vh] object-contain"></video>
-      </div>
-      <div id="liveCameraStatus" class="text-xs text-slate-300 mt-2 text-center"></div>
-      <div class="flex flex-wrap gap-2 justify-center mt-3">
-        <button type="button" id="btnSnapPhoto" onclick="captureLivePhoto()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
-          <i class="fa-solid fa-camera"></i> Tomar Foto
-        </button>
-        <button type="button" id="btnStartRecord" onclick="startLiveVideoRecording()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
-          <i class="fa-solid fa-record-vinyl"></i> Iniciar Video
-        </button>
-        <button type="button" id="btnStopRecord" onclick="stopLiveVideoRecording()" class="hidden bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold border-0 cursor-pointer flex items-center gap-1.5">
-          <i class="fa-solid fa-stop"></i> Detener y Usar Video
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- MODAL: Gestión de Modelos -->
   <div id="modelManagerModal" class="modal-backdrop hidden">
@@ -1070,14 +1015,6 @@
     let currentEvidenceFileBlob = null;
     let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
-
-    let liveStream = null;
-    let liveTargetSlot = "vin";
-    let liveMediaRecorder = null;
-    let liveRecordedChunks = [];
-
-    let pendingMediaSelection = false;
-    let fallbackTimer = null;
 
     function createSafeObjectUrl(blob) {
       const url = URL.createObjectURL(blob);
@@ -1147,6 +1084,28 @@
       });
     }
 
+    function broadcastState(actionEvent = null) {
+      const payload = {
+        type: "SYNC_RECORDS",
+        action: actionEvent ? actionEvent.action : "SYNC",
+        event: actionEvent,
+        records,
+        models
+      };
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage(payload, "*");
+        } catch (_) {}
+      }
+
+      if (window.opener && !window.opener.closed && window.opener !== window) {
+        try {
+          window.opener.postMessage(payload, "*");
+        } catch (_) {}
+      }
+    }
+
     async function persistState(actionEvent = null) {
       await saveDataToDB();
 
@@ -1173,15 +1132,7 @@
         }
       }
 
-      if (window.parent && window.parent !== window && actionEvent) {
-        try {
-          window.parent.postMessage({
-            ...actionEvent,
-            records,
-            models
-          }, "*");
-        } catch (_) {}
-      }
+      broadcastState(actionEvent);
     }
 
     function getMediaUrl(mediaData) {
@@ -1246,31 +1197,8 @@
       }
     }
 
-    function dataUrlToBlob(dataUrl, fallbackMime = "image/jpeg") {
-      try {
-        const parts = dataUrl.split(",");
-        const mimeMatch = parts[0].match(/:(.*?);/);
-        const mime = (mimeMatch && mimeMatch[1]) || fallbackMime;
-        const binary = atob(parts[1]);
-        const len = binary.length;
-        const u8 = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          u8[i] = binary.charCodeAt(i);
-        }
-        return new Blob([u8], { type: mime });
-      } catch (_) {
-        return null;
-      }
-    }
-
     function applyFileToSlot(slot, file, forcedType = null) {
       if (!file) return;
-      pendingMediaSelection = false;
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer);
-        fallbackTimer = null;
-      }
-
       if (slot === "vin") {
         currentVinFileBlob = file;
         currentVinPreviewUrl = createSafeObjectUrl(file);
@@ -1283,134 +1211,6 @@
           /\.(mp4|mov|webm|m4v|3gp|avi)$/i.test(file.name || "");
         currentEvidenceFileType = isVideo ? "video" : "image";
         setEvidencePreview(currentEvidencePreviewUrl, currentEvidenceFileType);
-      }
-    }
-
-    function armPowerAppsFallback(slot, mode) {
-      pendingMediaSelection = true;
-      if (fallbackTimer) clearTimeout(fallbackTimer);
-
-      if (window.parent && window.parent !== window) {
-        try {
-          window.parent.postMessage({
-            type: "REQUEST_MEDIA",
-            slot: slot,
-            mode: mode
-          }, "*");
-        } catch (_) {}
-      }
-
-      fallbackTimer = setTimeout(() => {
-        if (!pendingMediaSelection) return;
-        if (document.hasFocus()) {
-          pendingMediaSelection = false;
-          openLiveCameraModal(slot, mode === "gallery" ? "photo" : mode);
-        }
-      }, 900);
-    }
-
-    async function openLiveCameraModal(slot, mode = "photo") {
-      liveTargetSlot = slot;
-      const modal = document.getElementById("liveCameraModal");
-      const title = document.getElementById("liveCameraTitle");
-      const status = document.getElementById("liveCameraStatus");
-      const vid = document.getElementById("liveCameraStreamVideo");
-      const btnRecord = document.getElementById("btnStartRecord");
-      const btnStop = document.getElementById("btnStopRecord");
-
-      title.innerText = slot === "vin" ? "Cámara en Vivo - Foto VIN" : "Cámara en Vivo - Evidencia";
-      btnRecord.classList.toggle("hidden", slot === "vin");
-      btnStop.classList.add("hidden");
-      status.innerText = "Solicitando acceso a la cámara...";
-
-      modal.classList.remove("hidden");
-      modal.classList.add("flex");
-
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error("Cámara no soportada en este contenedor.");
-        }
-        const constraints = slot === "vin"
-          ? { video: { facingMode: { ideal: "environment" } }, audio: false }
-          : { video: { facingMode: { ideal: "environment" } }, audio: mode === "video" };
-
-        liveStream = await navigator.mediaDevices.getUserMedia(constraints);
-        vid.srcObject = liveStream;
-        status.innerText = slot === "vin"
-          ? "Enfoca la etiqueta/chasis VIN y toca Tomar Foto."
-          : "Toca Tomar Foto o Iniciar Video para grabar evidencia.";
-      } catch (err) {
-        status.innerText = "Cámara no disponible en este contenedor (" + (err.message || "permiso o Power Apps") + ").";
-      }
-    }
-
-    function closeLiveCameraModal() {
-      if (liveMediaRecorder && liveMediaRecorder.state !== "inactive") {
-        try { liveMediaRecorder.stop(); } catch (_) {}
-      }
-      liveMediaRecorder = null;
-      liveRecordedChunks = [];
-
-      if (liveStream) {
-        liveStream.getTracks().forEach(t => {
-          try { t.stop(); } catch (_) {}
-        });
-        liveStream = null;
-      }
-
-      const vid = document.getElementById("liveCameraStreamVideo");
-      if (vid) vid.srcObject = null;
-
-      const modal = document.getElementById("liveCameraModal");
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-    }
-
-    function captureLivePhoto() {
-      const vid = document.getElementById("liveCameraStreamVideo");
-      if (!vid || !vid.videoWidth || !vid.videoHeight) return;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = vid.videoWidth;
-      canvas.height = vid.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const file = new File([blob], (liveTargetSlot === "vin" ? "vin_" : "evidencia_") + Date.now() + ".jpg", { type: "image/jpeg" });
-        applyFileToSlot(liveTargetSlot, file, "image");
-        closeLiveCameraModal();
-      }, "image/jpeg", 0.9);
-    }
-
-    function startLiveVideoRecording() {
-      if (!liveStream || typeof MediaRecorder === "undefined") return;
-      liveRecordedChunks = [];
-      try {
-        liveMediaRecorder = new MediaRecorder(liveStream);
-      } catch (_) {
-        return;
-      }
-      liveMediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) liveRecordedChunks.push(e.data);
-      };
-      liveMediaRecorder.onstop = () => {
-        const mime = (liveMediaRecorder && liveMediaRecorder.mimeType) || "video/webm";
-        const blob = new Blob(liveRecordedChunks, { type: mime });
-        const file = new File([blob], "evidencia_" + Date.now() + ".webm", { type: mime });
-        applyFileToSlot("evidence", file, "video");
-        closeLiveCameraModal();
-      };
-      liveMediaRecorder.start();
-      document.getElementById("btnStartRecord").classList.add("hidden");
-      document.getElementById("btnStopRecord").classList.remove("hidden");
-      document.getElementById("liveCameraStatus").innerText = "Grabando video... toca Detener y Usar Video al terminar.";
-    }
-
-    function stopLiveVideoRecording() {
-      if (liveMediaRecorder && liveMediaRecorder.state !== "inactive") {
-        liveMediaRecorder.stop();
       }
     }
 
@@ -1483,20 +1283,16 @@
           populateModelDropdown();
           renderChronologicalTree();
           handleSearch();
-        } else if (event.data.type === "RECEIVE_MEDIA") {
-          const slot = event.data.slot === "evidence" ? "evidence" : "vin";
-          const mediaType = event.data.mediaType || null;
-          if (event.data.file instanceof Blob) {
-            applyFileToSlot(slot, event.data.file, mediaType);
-          } else if (typeof event.data.dataUrl === "string" && event.data.dataUrl.startsWith("data:")) {
-            const blob = dataUrlToBlob(event.data.dataUrl, event.data.mimeType || (mediaType === "video" ? "video/mp4" : "image/jpeg"));
-            if (blob) {
-              const file = new File([blob], event.data.fileName || ((slot === "vin" ? "vin_" : "evidencia_") + Date.now()), { type: blob.type });
-              applyFileToSlot(slot, file, mediaType);
-            }
-          }
+        } else if (event.data.type === "REQUEST_SYNC_STATE") {
+          broadcastState({ action: "SYNC_REQUEST_RESPONSE" });
         }
       });
+
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({ type: "REQUEST_SYNC_STATE" }, "*");
+        } catch (_) {}
+      }
 
       populateModelDropdown();
       renderChronologicalTree();
