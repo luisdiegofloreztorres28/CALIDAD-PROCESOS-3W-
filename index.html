@@ -286,6 +286,13 @@
       margin-top: 8px;
     }
 
+    .pick-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
     .pick-btn {
       position: relative;
       overflow: hidden;
@@ -907,14 +914,22 @@
           <!-- Controles de Archivo Evidencia -->
           <div>
             <span class="field-label">Evidencia de Novedad (Imagen o Video)</span>
-            <div class="pick-grid">
+            <div class="pick-grid-3">
               <button type="button" onclick="openLiveCamera('evidence')" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
                   <i class="fa-solid fa-camera text-xl text-blue-600"></i>
-                  <span>Tomar Foto/Video</span>
+                  <span>Tomar Foto</span>
                 </span>
               </button>
-              <input id="evCameraInput" type="file" accept="image/*,video/*" capture="environment" class="hidden" onchange="handleEvidenceFileSelect(event)">
+              <input id="evCameraInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleEvidenceFileSelect(event)">
+
+              <button type="button" onclick="openLiveVideo()" class="pick-btn pick-btn-dashed">
+                <span class="pick-btn-content">
+                  <i class="fa-solid fa-video text-xl text-red-600"></i>
+                  <span>Grabar Video</span>
+                </span>
+              </button>
+              <input id="evVideoInput" type="file" accept="video/*" capture="environment" class="hidden" onchange="handleEvidenceVideoSelect(event)">
 
               <label for="evGalleryInput" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
@@ -1003,17 +1018,30 @@
     </div>
   </div>
 
-  <!-- MODAL CÁMARA EN VIVO -->
+  <!-- MODAL CÁMARA EN VIVO (FOTO Y VIDEO) -->
   <div id="liveCameraModal" class="modal-backdrop hidden">
     <div class="modal-card-media" style="max-width: 540px;">
-      <button type="button" onclick="closeLiveCamera()" class="btn-remove-media" style="top:12px;right:12px;width:36px;height:36px;background-color:#1e293b;font-size:14px;" title="Cerrar cámara">
+      <button type="button" onclick="closeLiveCamera()" class="btn-remove-media" style="top:12px;right:12px;width:36px;height:36px;background-color:#1e293b;font-size:14px;z-index:20;" title="Cerrar cámara">
         <i class="fa-solid fa-xmark"></i>
       </button>
       <div class="p-3 flex flex-col items-center gap-3">
-        <video id="liveCameraVideo" autoplay playsinline muted class="w-full rounded-lg bg-black max-h-[65vh] object-contain"></video>
-        <div class="flex gap-2 w-full">
+        <div class="relative w-full">
+          <video id="liveCameraVideo" autoplay playsinline muted class="w-full rounded-lg bg-black max-h-[65vh] object-contain"></video>
+          <span id="recIndicator" class="hidden" style="position:absolute;top:10px;left:12px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:0.04em;">
+            ● REC <span id="recTimer">00:00</span>
+          </span>
+        </div>
+        <div id="photoCaptureControls" class="flex gap-2 w-full">
           <button type="button" onclick="captureLivePhoto()" class="btn-submit" style="background-color:#059669;">
             <i class="fa-solid fa-camera"></i> <span>Capturar Foto</span>
+          </button>
+        </div>
+        <div id="videoCaptureControls" class="hidden flex gap-2 w-full">
+          <button type="button" id="startRecBtn" onclick="startVideoRecording()" class="btn-submit" style="background-color:#dc2626;">
+            <i class="fa-solid fa-circle-dot"></i> <span>Iniciar Grabación</span>
+          </button>
+          <button type="button" id="stopRecBtn" onclick="stopVideoRecording()" class="hidden btn-submit" style="background-color:#059669;">
+            <i class="fa-solid fa-stop"></i> <span>Detener y Usar Video</span>
           </button>
         </div>
       </div>
@@ -1051,6 +1079,10 @@
 
     let liveCameraStream = null;
     let liveCameraTargetSlot = "evidence";
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recTimerInterval = null;
+    let recSeconds = 0;
 
     const DEFAULT_MODELS = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
     let models = [...DEFAULT_MODELS];
@@ -1063,6 +1095,14 @@
     let currentEvidenceFileBlob = null;
     let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
+
+    function updateRecTimerText() {
+      const el = document.getElementById("recTimer");
+      if (!el) return;
+      const mins = String(Math.floor(recSeconds / 60)).padStart(2, "0");
+      const secs = String(recSeconds % 60).padStart(2, "0");
+      el.textContent = `${mins}:${secs}`;
+    }
 
     async function openLiveCamera(slot = "evidence") {
       liveCameraTargetSlot = slot;
@@ -1078,6 +1118,11 @@
         });
         const videoEl = document.getElementById("liveCameraVideo");
         videoEl.srcObject = liveCameraStream;
+
+        document.getElementById("photoCaptureControls").classList.remove("hidden");
+        document.getElementById("videoCaptureControls").classList.add("hidden");
+        document.getElementById("recIndicator").classList.add("hidden");
+
         const modal = document.getElementById("liveCameraModal");
         modal.classList.remove("hidden");
         modal.classList.add("flex");
@@ -1087,13 +1132,134 @@
       }
     }
 
+    async function openLiveVideo() {
+      liveCameraTargetSlot = "evidence";
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+        const fallbackInput = document.getElementById("evVideoInput");
+        if (fallbackInput) fallbackInput.click();
+        return;
+      }
+      try {
+        try {
+          liveCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: true
+          });
+        } catch (_) {
+          liveCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+          });
+        }
+
+        const videoEl = document.getElementById("liveCameraVideo");
+        videoEl.srcObject = liveCameraStream;
+
+        document.getElementById("photoCaptureControls").classList.add("hidden");
+        document.getElementById("videoCaptureControls").classList.remove("hidden");
+        document.getElementById("startRecBtn").classList.remove("hidden");
+        document.getElementById("stopRecBtn").classList.add("hidden");
+        document.getElementById("recIndicator").classList.add("hidden");
+
+        const modal = document.getElementById("liveCameraModal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } catch (_) {
+        const fallbackInput = document.getElementById("evVideoInput");
+        if (fallbackInput) fallbackInput.click();
+      }
+    }
+
+    function startVideoRecording() {
+      if (!liveCameraStream) return;
+      recordedChunks = [];
+
+      const mimeCandidates = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+        "video/mp4"
+      ];
+      let chosenMime = "";
+      for (const m of mimeCandidates) {
+        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+          chosenMime = m;
+          break;
+        }
+      }
+
+      try {
+        mediaRecorder = chosenMime
+          ? new MediaRecorder(liveCameraStream, { mimeType: chosenMime })
+          : new MediaRecorder(liveCameraStream);
+      } catch (_) {
+        const fallbackInput = document.getElementById("evVideoInput");
+        closeLiveCamera();
+        if (fallbackInput) fallbackInput.click();
+        return;
+      }
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const finalType = (mediaRecorder && mediaRecorder.mimeType) || chosenMime || "video/webm";
+        const ext = finalType.includes("mp4") ? "mp4" : "webm";
+        const blob = new Blob(recordedChunks, { type: finalType });
+        if (blob.size > 0) {
+          const file = new File([blob], `video_evidencia_${Date.now()}.${ext}`, { type: finalType });
+          applyFileToSlot("evidence", file, "video");
+        }
+        closeLiveCamera();
+      };
+
+      mediaRecorder.start(250);
+      recSeconds = 0;
+      updateRecTimerText();
+      document.getElementById("recIndicator").classList.remove("hidden");
+      document.getElementById("startRecBtn").classList.add("hidden");
+      document.getElementById("stopRecBtn").classList.remove("hidden");
+
+      if (recTimerInterval) clearInterval(recTimerInterval);
+      recTimerInterval = setInterval(() => {
+        recSeconds += 1;
+        updateRecTimerText();
+      }, 1000);
+    }
+
+    function stopVideoRecording() {
+      if (recTimerInterval) {
+        clearInterval(recTimerInterval);
+        recTimerInterval = null;
+      }
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      } else {
+        closeLiveCamera();
+      }
+    }
+
     function closeLiveCamera() {
+      if (recTimerInterval) {
+        clearInterval(recTimerInterval);
+        recTimerInterval = null;
+      }
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        try { mediaRecorder.onstop = null; mediaRecorder.stop(); } catch (_) {}
+      }
+      mediaRecorder = null;
+      recordedChunks = [];
+
       if (liveCameraStream) {
         liveCameraStream.getTracks().forEach(t => t.stop());
         liveCameraStream = null;
       }
       const videoEl = document.getElementById("liveCameraVideo");
       if (videoEl) videoEl.srcObject = null;
+      document.getElementById("recIndicator").classList.add("hidden");
       const modal = document.getElementById("liveCameraModal");
       modal.classList.add("hidden");
       modal.classList.remove("flex");
@@ -1605,14 +1771,23 @@
       applyFileToSlot("evidence", file);
     }
 
+    function handleEvidenceVideoSelect(event) {
+      const input = event.target;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      applyFileToSlot("evidence", file, "video");
+    }
+
     function removeEvidenceFile() {
       currentEvidenceFileBlob = null;
       currentEvidencePreviewUrl = null;
       currentEvidenceFileType = "image";
       setEvidencePreview("");
       const cInput = document.getElementById("evCameraInput");
+      const vInput = document.getElementById("evVideoInput");
       const gInput = document.getElementById("evGalleryInput");
       if (cInput) cInput.value = "";
+      if (vInput) vInput.value = "";
       if (gInput) gInput.value = "";
     }
 
