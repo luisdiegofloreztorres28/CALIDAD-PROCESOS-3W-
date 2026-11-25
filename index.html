@@ -850,13 +850,13 @@
             <i class="fa-solid fa-id-card text-blue-600 mr-1"></i> Casilla 1: Foto de la Etiqueta / Chasis VIN
           </span>
           <div class="pick-grid">
-            <label for="vinCameraInput" class="pick-btn pick-btn-blue">
+            <button type="button" onclick="openLiveCamera('vin')" class="pick-btn pick-btn-blue">
               <span class="pick-btn-content">
                 <i class="fa-solid fa-camera text-blue-600 text-lg"></i>
                 <span>Tomar Foto VIN</span>
               </span>
-              <input id="vinCameraInput" type="file" accept="image/*" capture="environment" class="native-file-overlay" onchange="handleVinFileSelect(event)">
-            </label>
+            </button>
+            <input id="vinCameraInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleVinFileSelect(event)">
             <label for="vinGalleryInput" class="pick-btn pick-btn-blue">
               <span class="pick-btn-content">
                 <i class="fa-solid fa-image text-blue-600 text-lg"></i>
@@ -908,13 +908,13 @@
           <div>
             <span class="field-label">Evidencia de Novedad (Imagen o Video)</span>
             <div class="pick-grid">
-              <label for="evCameraInput" class="pick-btn pick-btn-dashed">
+              <button type="button" onclick="openLiveCamera('evidence')" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
                   <i class="fa-solid fa-camera text-xl text-blue-600"></i>
                   <span>Tomar Foto/Video</span>
                 </span>
-                <input id="evCameraInput" type="file" accept="image/*,video/*" class="native-file-overlay" onchange="handleEvidenceFileSelect(event)">
-              </label>
+              </button>
+              <input id="evCameraInput" type="file" accept="image/*,video/*" capture="environment" class="hidden" onchange="handleEvidenceFileSelect(event)">
 
               <label for="evGalleryInput" class="pick-btn pick-btn-dashed">
                 <span class="pick-btn-content">
@@ -1003,6 +1003,23 @@
     </div>
   </div>
 
+  <!-- MODAL CÁMARA EN VIVO -->
+  <div id="liveCameraModal" class="modal-backdrop hidden">
+    <div class="modal-card-media" style="max-width: 540px;">
+      <button type="button" onclick="closeLiveCamera()" class="btn-remove-media" style="top:12px;right:12px;width:36px;height:36px;background-color:#1e293b;font-size:14px;" title="Cerrar cámara">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="p-3 flex flex-col items-center gap-3">
+        <video id="liveCameraVideo" autoplay playsinline muted class="w-full rounded-lg bg-black max-h-[65vh] object-contain"></video>
+        <div class="flex gap-2 w-full">
+          <button type="button" onclick="captureLivePhoto()" class="btn-submit" style="background-color:#059669;">
+            <i class="fa-solid fa-camera"></i> <span>Capturar Foto</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL REPRODUCTOR / VISOR MULTIMEDIA INTEGRADO -->
   <div id="mediaModal" class="modal-backdrop hidden">
     <div class="modal-card-media">
@@ -1032,6 +1049,9 @@
     let lastUpdatedAt = "";
     let pollInterval = null;
 
+    let liveCameraStream = null;
+    let liveCameraTargetSlot = "evidence";
+
     const DEFAULT_MODELS = ["TRICARGO 200", "TRICARGO 300", "KING MOTOCARRO", "TVS RAIDER 125"];
     let models = [...DEFAULT_MODELS];
     let records = [];
@@ -1043,6 +1063,60 @@
     let currentEvidenceFileBlob = null;
     let currentEvidencePreviewUrl = null;
     let currentEvidenceFileType = "image";
+
+    async function openLiveCamera(slot = "evidence") {
+      liveCameraTargetSlot = slot;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const fallbackInput = document.getElementById(slot === "vin" ? "vinCameraInput" : "evCameraInput");
+        if (fallbackInput) fallbackInput.click();
+        return;
+      }
+      try {
+        liveCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        const videoEl = document.getElementById("liveCameraVideo");
+        videoEl.srcObject = liveCameraStream;
+        const modal = document.getElementById("liveCameraModal");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      } catch (_) {
+        const fallbackInput = document.getElementById(slot === "vin" ? "vinCameraInput" : "evCameraInput");
+        if (fallbackInput) fallbackInput.click();
+      }
+    }
+
+    function closeLiveCamera() {
+      if (liveCameraStream) {
+        liveCameraStream.getTracks().forEach(t => t.stop());
+        liveCameraStream = null;
+      }
+      const videoEl = document.getElementById("liveCameraVideo");
+      if (videoEl) videoEl.srcObject = null;
+      const modal = document.getElementById("liveCameraModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function captureLivePhoto() {
+      const videoEl = document.getElementById("liveCameraVideo");
+      if (!videoEl || !videoEl.videoWidth) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `captura_${Date.now()}.jpg`, { type: "image/jpeg" });
+          applyFileToSlot(liveCameraTargetSlot, file, "image");
+        }
+        closeLiveCamera();
+      }, "image/jpeg", 0.88);
+    }
 
     function setSyncBadge(iconClass, text, bg, fg) {
       const badge = document.getElementById("syncStatusBadge");
